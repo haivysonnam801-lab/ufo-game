@@ -1,0 +1,3029 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFO Bắt Cóc Ngẫu Nhiên - Wheel of Names Phiên Bản Đĩa Bay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,600;0,700;0,800;0,900;1,600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: 'Be Vietnam Pro', sans-serif;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* Thanh cuộn đẹp cho ô nhập tên và bảng kết quả */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.85);
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(-1deg); }
+            50% { transform: translateY(-6px) rotate(1deg); }
+        }
+        .animate-ufo-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 18px rgba(16, 185, 129, 0.5); }
+            50% { box-shadow: 0 0 32px rgba(56, 189, 248, 0.9); }
+        }
+        .btn-glow {
+            animation: pulseGlow 2.2s infinite;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden bg-slate-950 text-white">
+
+    <!-- ==================== 1. CANVAS TRÒ CHƠI 2D FULLSCREEN 100% ==================== -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+    <!-- ==================== 2. THANH HUD NỔI TRÊN MÀN HÌNH CHƠI GAME (ĐÃ TỐI ƯU GỌN GÀNG) ==================== -->
+    <div id="topHudBar" class="fixed top-2 left-2.5 right-2.5 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <!-- Cụm trạng thái bên trái -->
+        <div class="flex flex-wrap items-center gap-2 pointer-events-auto">
+            <button id="openSetupBtn" onclick="openSetupModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700/80 shadow-lg backdrop-blur-md text-xs font-bold text-sky-300 transition active:scale-95">
+                <span>⚙️ Menu Đổi Tên</span>
+                <span id="hudTotalBadge" class="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-200 border border-sky-400/30 text-[11px]">16 người</span>
+            </button>
+
+            <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-slate-900/85 border border-slate-700/80 shadow-lg backdrop-blur-md">
+                <span id="hudPhaseIcon" class="text-base">🌤️</span>
+                <div>
+                    <div id="hudPhaseTitle" class="text-xs font-extrabold text-amber-300 tracking-wide">ĐƯỜNG PHỐ BUỔI SÁNG</div>
+                    <div id="hudPhaseSub" class="text-[10px] text-slate-300">Bấm "Menu Đổi Tên" hoặc bắt đầu ngay!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cụm danh sách người vừa bị bắt trực tiếp ở giữa -->
+        <div id="liveAbductedContainer" class="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-2xl bg-slate-900/80 border border-emerald-500/40 backdrop-blur-md max-w-xl overflow-x-auto pointer-events-auto">
+            <span class="text-xs font-bold text-emerald-300 whitespace-nowrap mr-1">🛸 Trong bụng UFO:</span>
+            <div id="liveAbductedBadges" class="flex items-center gap-1.5"></div>
+        </div>
+
+        <!-- Cụm nút tương tác hài hước bên phải -->
+        <div class="flex items-center gap-1.5 pointer-events-auto">
+            <button id="chaosGagBtn" onclick="triggerStreetChaosGag()" class="px-3 py-1.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-lg transition active:scale-95 flex items-center gap-1.5" title="Thả chó rượt & bấm còi làm giật mình UFO, giải cứu người đang ôm cây và đổi mục tiêu!">
+                <span>🐕🎺</span>
+                <span id="chaosGagBtnText" class="hidden sm:inline">Thả Chó & Bóp Kèn (Phá UFO)</span>
+            </button>
+
+            <button id="speedToggleBtn" onclick="toggleGameSpeed()" class="px-2.5 py-1.5 rounded-2xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-purple-300 shadow-lg backdrop-blur-md transition active:scale-95">
+                ⏩ 1x
+            </button>
+
+            <button id="soundToggleBtn" onclick="toggleSound()" class="p-1.5 rounded-2xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-xs shadow-lg backdrop-blur-md transition active:scale-95" title="Bật/Tắt âm thanh">
+                🔊
+            </button>
+        </div>
+    </div>
+
+    <!-- Thông báo Toast góc dưới -->
+    <div id="toastBanner" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl bg-slate-900/95 border border-sky-400/50 text-sky-200 font-bold text-sm shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-4">
+        Đã sao chép kết quả!
+    </div>
+
+    <!-- ==================== 3. MÀN HÌNH MENU THIẾT LẬP RIÊNG BIỆT ==================== -->
+    <div id="setupModal" class="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300">
+        <div class="relative w-full max-w-4xl bg-slate-900/95 border border-slate-700/90 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+            <!-- Header Menu -->
+            <div class="px-6 py-4 bg-gradient-to-r from-sky-900/80 via-indigo-900/80 to-emerald-900/80 border-b border-slate-700/80 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-3xl animate-ufo-float">
+                        🛸
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                            UFO BẮT CÓC NGẪU NHIÊN
+                            <span class="px-2.5 py-0.5 text-[11px] font-extrabold rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40">2D FULLSCREEN</span>
+                        </h1>
+                        <p class="text-xs sm:text-sm text-sky-200/80">Điền tên người dân dạo phố buổi sáng — Đĩa bay sẽ nhấp nhả và bắt cóc ngẫu nhiên!</p>
+                    </div>
+                </div>
+                <button onclick="closeSetupModal()" class="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-600 transition">
+                    Xem phố trước ✕
+                </button>
+            </div>
+
+            <!-- Body Menu: Chia 2 cột trên màn hình lớn -->
+            <div class="p-5 sm:p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-5">
+                <!-- Cột trái: Nhập danh sách tên (7 phần) -->
+                <div class="lg:col-span-7 flex flex-col">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <label for="namesInput" class="text-sm font-extrabold text-sky-300 flex items-center gap-1.5">
+                            <span>👥 Danh sách người đi trên phố</span>
+                            <span class="text-xs font-normal text-slate-400">(Mỗi dòng 1 tên - Tối đa 40)</span>
+                        </label>
+                        <span id="nameCountBadge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                            14 / 40 người
+                        </span>
+                    </div>
+
+                    <textarea id="namesInput" rows="9" oninput="handleNamesInputChange()" placeholder="Nhập tên mỗi người trên 1 dòng..." class="w-full flex-1 p-3.5 rounded-2xl bg-slate-950/90 border border-slate-700 focus:border-sky-400 focus:outline-none text-sm text-slate-100 leading-relaxed resize-none shadow-inner"></textarea>
+
+                    <!-- Các nút thao tác nhanh danh sách tên -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="fillFunnySampleNames()" class="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/40 text-indigo-200 text-xs font-bold transition">
+                                ✨ Mẫu 16 tên vui nhộn
+                            </button>
+                            <button onclick="fillCrowd40Names()" class="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/40 text-emerald-200 text-xs font-bold transition">
+                                🔥 Đầy phố (40 người)
+                            </button>
+                            <button onclick="shuffleNamesList()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-bold transition">
+                                🔀 Xáo trộn
+                            </button>
+                        </div>
+                        <button onclick="clearNamesList()" class="px-3 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-500/40 text-rose-300 text-xs font-bold transition">
+                            🗑️ Xóa trắng
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cột phải: Tùy chỉnh UFO bắt cóc & Hiệu ứng hài hước (5 phần) -->
+                <div class="lg:col-span-5 flex flex-col justify-between bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div class="space-y-4">
+                        <h2 class="text-sm font-extrabold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                            <span>🛸 Thiết lập kịch bản bắt cóc</span>
+                        </h2>
+
+                        <!-- Số lượng người UFO sẽ bắt -->
+                        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs sm:text-sm font-bold text-slate-200">Số người UFO sẽ bắt cóc:</span>
+                                <span id="abductCountDisplay" class="px-3 py-0.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-base border border-emerald-500/40">3 người</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="adjustAbductCount(-1)" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-lg text-sky-300 border border-slate-600">-</button>
+                                <input id="abductCountSlider" type="range" min="1" max="14" value="3" oninput="syncAbductSlider()" class="flex-1 accent-emerald-400 cursor-pointer">
+                                <button onclick="adjustAbductCount(1)" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-lg text-sky-300 border border-slate-600">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Thời gian dạo phố buổi sáng trước khi UFO xuất hiện -->
+                        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs sm:text-sm font-bold text-slate-200">Thời gian dạo phố buổi sáng:</span>
+                                <span id="peaceTimeDisplay" class="text-xs font-extrabold text-amber-300">5 giây</span>
+                            </div>
+                            <input id="peaceTimeSlider" type="range" min="3" max="10" value="5" oninput="document.getElementById('peaceTimeDisplay').textContent = this.value + ' giây'" class="w-full accent-amber-400 cursor-pointer">
+                        </div>
+
+                        <!-- Chế độ chùm sáng: Hút 1 người hay комбо 2-3 người -->
+                        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+                            <label class="block text-xs sm:text-sm font-bold text-slate-200">Chế độ chùm sáng hút người:</label>
+                            <select id="batchModeSelect" class="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-sky-200 focus:outline-none focus:border-sky-400">
+                            <!-- Checkbox hiệu ứng nhấp nhả, tuyệt chiêu UFO & hút xe cộ -->
+                            <label class="flex items-center gap-2.5 pt-1 cursor-pointer">
+                                <input id="fakeoutToggle" type="checkbox" checked class="w-4 h-4 rounded accent-emerald-400">
+                                <span class="text-xs text-slate-300">Bật chiêu <b>UFO "nhấp nhả"</b> (Tỉ lệ vừa phải ~25% để tạo bất ngờ thú vị)</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 cursor-pointer">
+                                <input id="specialSkillsToggle" type="checkbox" checked class="w-4 h-4 rounded accent-emerald-400">
+                                <span class="text-xs text-slate-300">Bật <b>Đột biến hài hước</b> (Đóng băng thời gian, Thôi miên nhảy Disco, Chê nặng/hôi ném trả lại!)</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 cursor-pointer">
+                                <input id="suckVehiclesToggle" type="checkbox" checked class="w-4 h-4 rounded accent-emerald-400">
+                                <span class="text-xs text-slate-300">UFO hút bay cả <b>xe cộ, xe trà sữa, bò đi lạc</b> trên phố</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Nút Bắt Đầu Fullscreen -->
+                    <button onclick="startNewGameFromMenu()" class="btn-glow w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-black text-base sm:text-lg tracking-wide shadow-xl transition transform active:scale-98 flex items-center justify-center gap-2">
+                        <span>🚀 BẮT ĐẦU TRÒ CHƠI (FULLSCREEN)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 4. MÀN HÌNH TỔNG KẾT NGƯỜI BỊ UFO BẮT CÓC ==================== -->
+    <div id="summaryModal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="w-full max-w-2xl bg-slate-900 border-2 border-emerald-400/60 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header Tổng kết -->
+            <div class="px-6 py-5 bg-gradient-to-r from-emerald-900/80 via-teal-900/80 to-sky-900/80 border-b border-emerald-500/30 text-center relative">
+                <div class="text-4xl mb-1 animate-ufo-float">🛸✨🐄</div>
+                <h2 class="text-xl sm:text-2xl font-black text-white tracking-wide">DANH SÁCH NGƯỜI BỊ UFO BẮT CÓC!</h2>
+                <p id="summarySubtitle" class="text-xs sm:text-sm text-emerald-200 mt-1">Chúc mừng các công dân ưu tú đã được tuyển thẳng lên Sao Hỏa!</p>
+            </div>
+
+            <!-- Danh sách chi tiết -->
+            <div id="summaryWinnersList" class="p-5 overflow-y-auto space-y-3 flex-1"></div>
+
+            <!-- Các nút hành động sau màn chơi -->
+            <div class="p-4 sm:p-5 bg-slate-950/90 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+                <button onclick="copyAbductedResults()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs sm:text-sm font-bold text-sky-300 transition flex items-center gap-1.5">
+                    <span>📋 Sao chép kết quả</span>
+                </button>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button id="continueWithoutWinnersBtn" onclick="continueGameRemoveAbducted()" class="px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-300 text-xs sm:text-sm font-extrabold transition">
+                        🔄 Bắt tiếp (Loại những người vừa bị bắt)
+                    </button>
+                    <button onclick="replaySameList()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg transition">
+                        🎬 Chơi lại từ đầu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. HỆ THỐNG ÂM THANH SYNTHESIZER (WEB AUDIO API - KHÔNG CẦN FILE NGOÀI)
+         ********************************************************************/
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function ensureAudio() {
+            if (!soundEnabled) return null;
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) audioCtx = new AudioContextClass();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundToggleBtn').textContent = soundEnabled ? '🔊' : '🔇';
+            showToast(soundEnabled ? 'Đã bật hiệu ứng âm thanh!' : 'Đã tắt âm thanh!');
+        }
+
+        function playSound(type) {
+            const ctx = ensureAudio();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            try {
+                if (type === 'horn') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(310, now);
+                    osc.frequency.setValueAtTime(390, now + 0.12);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'ufo_arrive') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(620, now + 0.45);
+                    osc.frequency.exponentialRampToValueAtTime(240, now + 0.95);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.0);
+                } else if (type === 'beam_lock') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(480, now + 0.35);
+                    gain.gain.setValueAtTime(0.09, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'slip_branch') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(760, now + 0.25);
+                    gain.gain.setValueAtTime(0.09, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'drop_thud') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(420, now);
+                    osc.frequency.exponentialRampToValueAtTime(85, now + 0.45);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'pop_abduct') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(340, now);
+                    osc.frequency.exponentialRampToValueAtTime(980, now + 0.22);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.26);
+                } else if (type === 'time_freeze') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(680, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.65);
+                    gain.gain.setValueAtTime(0.11, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.72);
+                } else if (type === 'spit_out') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.linearRampToValueAtTime(520, now + 0.18);
+                    osc.frequency.exponentialRampToValueAtTime(95, now + 0.55);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                } else if (type === 'disco') {
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((f, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.06, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.18);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.2);
+                    });
+                } else if (type === 'victory') {
+                    const notes = [523.25, 659.25, 783.99, 1046.5];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+                        gain.gain.setValueAtTime(0.1, now + idx * 0.11);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.11);
+                        osc.stop(now + idx * 0.11 + 0.36);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        /********************************************************************
+         * 2. KHO CÂU THOẠI HÀI HƯỚC BẮT TREND & LÝ DO BỊ BẮT CÓC
+         ********************************************************************/
+        const DEFAULT_FUNNY_NAMES = [
+            "Minh Tuấn", "Hải Yến", "Hoàng Long", "Thảo Nhi",
+            "Quốc Bảo", "Phương Anh", "Đức Huy", "Khánh Linh",
+            "Trọng Nghĩa", "Bích Ngọc", "Thành Đạt", "Thanh Hà",
+            "Gia Hưng", "Bảo Trâm", "Tuấn Kiệt", "Ngọc Trinh"
+        ];
+
+        const MORNING_CHATS = [
+            "Sáng nay ăn phở hay bún bò ta?",
+            "Trời đẹp quá, đi làm sớm thôi!",
+            "Làm ly cà phê sữa đá tỉnh cả người!",
+            "Chạy lẹ kẻo chấm công trễ giờ!",
+            "Hôm nay diện bộ đồ ưng ý ghê!",
+            "Chào buổi sáng cả nhà yêu!",
+            "Đi làm sớm kiếm thưởng chuyên cần!",
+            "Tối nay nhớ kèo đi ăn lẩu nha!",
+            "Bánh mì ốp la giòn rụm đây!",
+            "Đường thông hè thoáng sướng ghê!",
+            "Sáng nay săn sale chốt đơn mỏi tay!",
+            "Trà sữa full thạch trân châu trắng đây!",
+            "Hôm nay quyết tâm không tăng ca nha!"
+        ];
+
+        const PANIC_SCREAMS = [
+            "Ối dồi ôi UFO thật kìa bà con ơi!!",
+            "Bớ người ta đĩa bay xuống bắt người!",
+            "Đừng bắt em, em chưa có người yêu!",
+            "Cứu với! Chưa kịp xóa lịch sử web!",
+            "Ôm chặt gốc cây cột điện vào anh em ơi!!",
+            "Tha cho con, con còn nợ tiền trọ!",
+            "Bắt sếp em đi, đừng bắt em!!",
+            "Chạy chữ Z đi mọi người ơi!",
+            "Má ơi cứu con!! Đĩa bay to quá!",
+            "Á á đừng chiếu đèn vào đầu tôi!",
+            "Tôi nặng lắm hút không nổi đâu!!",
+            "Đã làm gì đâu?! Đã chạm vào đâu mà bắt!!",
+            "Đợi tí em còn đơn Shopee chưa nhận!!",
+            "Bật chế độ tàng hình... ủa sao nó vẫn thấy?!",
+            "Ngoan xinh yêu xin UFO tha mạng huhu!!",
+            "Anh em mình cứ chạy thôi hẹ hẹ hẹ!!"
+        ];
+
+        // Thoại giai đoạn 1: Bám chặt gốc cây / chân cột điện
+        const CLINGING_LOW_QUOTES = [
+            "Ôm chặt gốc cây! Quyết không buông!!",
+            "Chân cột điện ơi cứu tao với!!",
+            "Bám chắc vào! Nó đang tăng công suất kìa!",
+            "Tụt cả quần cả giày rồi cứu tôi với!!",
+            "Ai nắm cái chân kéo tôi xuống giùm cái!!",
+            "Nặng 70 ký mà nó cũng ráng hút nữa!",
+            "Gốc cây trơn quá anh em ơi cứu!!",
+            "Đừng kéo chân tao! Tụt quần tao bây giờ!!",
+            "Keo 502 đâu dán tay tôi vào cột điện lẹ!!",
+            "Tập gym 3 năm chỉ để ôm cột điện lúc này!!"
+        ];
+
+        // Thoại giai đoạn 2: Bị trượt tay bay lên, phải níu tiếp cành cây bên trên / đỉnh cột điện
+        const CLINGING_HIGH_QUOTES = [
+            "Á trượt gốc cây rồi! Níu cành trên lẹ!!",
+            "Bám tuốt lên ngọn cây luôn rồi má ơi!!",
+            "Gãy cành cây bây giờ! Cứu tôi vớiii!!",
+            "Ôm trúng cái loa phường trên đỉnh cột điện rồi!",
+            "Rụng hết lá cây rồi đừng hút nữa mà!!",
+            "Cao quá chóng mặt quá! Sắp tuột tay tiếp rồi!",
+            "Cong cả ngọn cây luôn rồi hú hồn chưa!!",
+            "Tới công chuyện luôn! Lên tới đọt cây rồi!!",
+            "Loa phường đang phát nhạc mà ôm điếc cả tai!!"
+        ];
+
+        // Thoại giai đoạn 3: UFO tắt đèn thả rơi xuống đất (Ăn mừng vì thoát!)
+        const FAKEOUT_CELEBRATE_QUOTES = [
+            "Haha đĩa bay hết bình ắc quy rồi bà con ơi!!",
+            "Thoát rồi!! Tưởng người ngoài hành tinh thế nào!",
+            "Sống rồi! Tối nay đi nhậu ăn mừng thôi!!",
+            "Lêu lêu UFO dỏm không hút nổi tao đâu!",
+            "Hú hồn chim én! Tự nhiên nó thả mình ra!",
+            "May quá mình nặng vía quá nó khiêng không nổi!",
+            "Ơn giời tổ tiên gánh còng lưng pha này!!",
+            "Tưởng thế nào! Chê tao nặng rồi bỏ đi chứ gì!"
+        ];
+
+        // Thoại khi UFO thả mình ra rồi bay đi bắt đứa khác thật!
+        const SPARED_RELIEF_QUOTES = [
+            "Haha nó chê mình nặng nó qua bắt đứa khác kìa!!",
+            "Thoát thật rồi bà con ơi! Qua hốt đứa kia rồi!",
+            "Cảm ơn UFO đã chê em! Mời anh qua bắt bạn kế bên!",
+            "Phù! Hú vía, tưởng lên sao Hỏa rửa chén rồi!",
+            "Đúng là ăn ở có đức, UFO nhả ra đi bắt người khác luôn!"
+        ];
+
+        // Thoại giai đoạn 4: UFO bất ngờ quay lại bật đèn hút tiếp (Sốc toàn tập!)
+        const RESNATCH_SHOCK_QUOTES = [
+            "Ủa chơi nhấp nhả kỳ vậy má?! Cứu vớiii!!",
+            "Á đù nó quay xe lại hút tiếp kìa bà con ơi!!",
+            "Mừng hụt rồi!! Biết thế nãy chạy luôn cho rồi!",
+            "Đĩa bay biết trêu ngươi nữa hả trời ơi!!",
+            "Tha cho em! Em trót dại gáy sớm có tí thôi mà!",
+            "Nó nạp lại đầy pin rồi á á á cứu tôi!!",
+            "Ủa alo?! Sao bảo đi bắt đứa khác rồi mà quay lại?!",
+            "Check var trọng tài ơi! UFO chơi ăn gian nhấp nhả!!"
+        ];
+
+        // Thoại giai đoạn cuối: Bay tọt vào bụng UFO (kèm các trò hài hước trên không)
+        const LIFTING_QUOTES = [
+            "Vĩnh biệt Trái Đất thân yêuuuu!!",
+            "Nhớ cho hoàng thượng mèo nhà em ăn nhaaa!",
+            "Chóng mặt quá quay mòng mòng luôn @_@!!",
+            "Rơi mất đôi dép tổ ong kỷ niệm rồi!!",
+            "Lên sao Hỏa làm chủ tịch luôn đây tạm biệt!!",
+            "Bung dù chống lực hút... ủa lật ngược dù luôn rồi!!",
+            "Đợi tí chụp tấm selfie với UFO đăng Tóp Tóp cái!!",
+            "Bơi ếch ngược xuống đất mà không ăn thua rồi!!",
+            "Thôi khỏi đi làm thứ Hai cũng được, tạm biệt sếp!!"
+        ];
+
+        // Thoại hài hước của riêng chiếc UFO
+        const UFO_FUNNY_THOUGHTS = [
+            "Để xem ai bám cột điện giỏi nhất nào!",
+            "Chùm sáng đa năng: Hút комбо 2-3 người luôn!",
+            "Lâu lâu nhấp nhả một pha cho kịch tính hehe!",
+            "Tiện tay hút luôn chiếc xe về làm kỷ niệm!",
+            "Bung dù với bơi ếch trên không cũng vô ích thôi cưng!",
+            "Quét radar tìm công dân tiêu biểu lên Sao Hỏa nào!"
+        ];
+
+        // Thoại khi UFO kích hoạt ĐÓNG BĂNG THỜI GIAN (Time Freeze)
+        const TIME_FREEZE_UFO_QUOTES = [
+            "⏱️ ĐÓNG BĂNG THỜI GIAN! Đứng im cho trẫm hút coi!!",
+            "⏱️ Ngưng đọng thời gian! Khỏi chạy khỏi ôm cây mất công!!",
+            "⏱️ Bật hack đứng hình toàn thành phố! Hút êm ru luôn!"
+        ];
+
+        const TIME_FREEZE_VICTIM_QUOTES = [
+            "Ủa sao tay chân cứng đờ không nhúc nhích được vậy?!",
+            "Đứng hình mất 5 giây rồi cứu tôi với bà con ơi!!",
+            "UFO chơi bật hack đóng băng thời gian kìa trọng tài ơi!!"
+        ];
+
+        // Thoại khi UFO bật nhạc DISCO THÔI MIÊN
+        const DISCO_UFO_QUOTES = [
+            "🕺 Bật nhạc sàn Sao Hỏa! Quẩy lên rồi tự bay vào tàu nhé!!",
+            "🪩 Tia sáng thôi miên Vũ Điệu Tóp Tóp! Nhảy lên nào cưng!!"
+        ];
+
+        const DISCO_VICTIM_QUOTES = [
+            "Ủa nhạc gì cuốn quá tự nhiên chân tự nhảy lên đĩa bay luôn?!",
+            "Đang sợ muốn chết mà nghe nhạc sàn cái tay chân tự quẩy!!",
+            "Cứu với! Cơ thể tôi tự nhảy Moonwalk bay lên trời rồi!!"
+        ];
+
+        // Thoại khi UFO ĐÃ BẮT VÀO BỤNG RỒI NHƯNG CHÊ & VỨT TRẢ LẠI XUỐNG ĐẤT!
+        const UFO_REJECT_REASONS = [
+            {
+                ufoQuote: "🤮 Ọe! Đứa này vừa ăn bún đậu mắm tôm nồng quá, trả lại Trái Đất đó!!",
+                victimQuote: "Ơ kìa! Mới ăn bún đậu mắm tôm tí mà UFO bịt mũi ném xuống luôn?!",
+                toast: "UFO vừa ném trả {name} vì mùi bún đậu mắm tôm quá nồng!"
+            },
+            {
+                ufoQuote: "⚖️ Báo động quá tải!! Khứa này nặng vía quá đĩa bay sập gầm, vứt xuống lẹ!!",
+                victimQuote: "Haha mình nặng quá làm đĩa bay nghiêng cánh phải thả trả lại luôn!!",
+                toast: "UFO phải thả trả {name} vì quá tải trọng lượng đĩa bay!"
+            },
+            {
+                ufoQuote: "🎤 Chịu hết nổi! Lên tàu mà nó cứ đòi hát Karaoke nhạc suy, trả về phố ngay!!",
+                victimQuote: "Mới hát có 2 bài bolero trong bụng đĩa bay mà nó đạp xuống lại rồi!!",
+                toast: "UFO vừa tống cổ {name} xuống phố vì hát Karaoke quá ồn!"
+            },
+            {
+                ufoQuote: "🧋 Vào tàu chưa được 30 giây đã lục tủ lạnh uống hết trà sữa của Alien! Cút!!",
+                victimQuote: "Mới uống ké ly trà sữa Sao Hỏa mà người ngoài hành tinh đuổi xuống luôn!",
+                toast: "UFO ném trả {name} xuống đất vì tội uống vụng trà sữa của Alien!"
+            }
+        ];
+
+        const FUNNY_ABDUCTION_REASONS = [
+            "Ôm gốc cây trượt lên tận ngọn cây vẫn không thoát",
+            "Bị UFO đóng băng thời gian đứng hình không kịp kháng cự",
+            "Bị tia sáng Disco thôi miên vừa nhảy Tóp Tóp vừa bay vào đĩa",
+            "Bị UFO thả ra cho ăn mừng hụt rồi bất ngờ quay xe hốt lại",
+            "Đang lơ lửng còn ráng rút điện thoại chụp selfie đăng Tóp Tóp",
+            "Mở dù che nắng để cản lực hút nhưng bị gió thổi lật ngược dù",
+            "Cố gắng bơi ếch và đạp xe giữa không trung nhưng vẫn bay vào đĩa",
+            "Đang ôm cứng loa phường trên đỉnh cột điện thì tuột tay",
+            "Được chọn thay thế chỗ cho người trước bị UFO chê nặng vứt xuống",
+            "Mặc đồ quá cháy phố nên được chọn làm Đại sứ Sao Hỏa"
+        ];
+
+        /********************************************************************
+         * 3. QUẢN LÝ DANH SÁCH TÊN & MÀN HÌNH MENU RIÊNG BIỆT
+         ********************************************************************/
+        function getParsedNames() {
+            const raw = document.getElementById('namesInput').value;
+            const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+            return lines.slice(0, 40);
+        }
+
+        function handleNamesInputChange() {
+            const names = getParsedNames();
+            const count = names.length;
+            const badge = document.getElementById('nameCountBadge');
+            badge.textContent = `${count} / 40 người`;
+            document.getElementById('hudTotalBadge').textContent = `${count} người`;
+
+            const slider = document.getElementById('abductCountSlider');
+            const maxAbduct = Math.max(1, count);
+            slider.max = maxAbduct;
+            if (parseInt(slider.value) > maxAbduct) {
+                slider.value = maxAbduct;
+            }
+            syncAbductSlider();
+
+            // Nếu đang ở trạng thái dạo phố chờ bắt đầu thì cập nhật ngay người trên phố
+            if (gameState.phase === 'idle') {
+                syncCitizensWithInputNames();
+            }
+        }
+
+        function syncAbductSlider() {
+            const slider = document.getElementById('abductCountSlider');
+            const val = Math.max(1, parseInt(slider.value) || 1);
+            document.getElementById('abductCountDisplay').textContent = `${val} người`;
+            gameState.targetAbductCount = val;
+        }
+
+        function adjustAbductCount(delta) {
+            const slider = document.getElementById('abductCountSlider');
+            const names = getParsedNames();
+            const maxVal = Math.max(1, names.length);
+            let nextVal = (parseInt(slider.value) || 1) + delta;
+            nextVal = Math.max(1, Math.min(maxVal, nextVal));
+            slider.value = nextVal;
+            syncAbductSlider();
+        }
+
+        function fillFunnySampleNames() {
+            document.getElementById('namesInput').value = DEFAULT_FUNNY_NAMES.join('\n');
+            handleNamesInputChange();
+            showToast('Đã nạp 16 tên mẫu vui nhộn!');
+        }
+
+        function fillCrowd40Names() {
+            const ho = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đặng", "Bùi", "Đỗ", "Hồ"];
+            const dem = ["Văn", "Thị", "Minh", "Hoàng", "Ngọc", "Quốc", "Gia", "Thanh", "Phương", "Đức"];
+            const ten = ["An", "Bình", "Cường", "Dũng", "Giang", "Hải", "Khánh", "Linh", "My", "Nam", "Oanh", "Phúc", "Quân", "Sơn", "Thảo", "Uyên", "Vinh", "Yến", "Tâm", "Kiệt"];
+            const list = [];
+            for (let i = 0; i < 40; i++) {
+                const name = `${ho[i % ho.length]} ${dem[(i * 3) % dem.length]} ${ten[(i * 7 + i) % ten.length]} #${i + 1}`;
+                list.push(name);
+            }
+            document.getElementById('namesInput').value = list.join('\n');
+            handleNamesInputChange();
+            showToast('Đã tạo đủ 40 người chật kín đường phố!');
+        }
+
+        function shuffleNamesList() {
+            const names = getParsedNames();
+            for (let i = names.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [names[i], names[j]] = [names[j], names[i]];
+            }
+            document.getElementById('namesInput').value = names.join('\n');
+            handleNamesInputChange();
+            showToast('Đã xáo trộn thứ tự danh sách tên!');
+        }
+
+        function clearNamesList() {
+            document.getElementById('namesInput').value = '';
+            handleNamesInputChange();
+        }
+
+        function openSetupModal() {
+            const modal = document.getElementById('setupModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSetupModal() {
+            const modal = document.getElementById('setupModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function showToast(msg) {
+            const banner = document.getElementById('toastBanner');
+            banner.textContent = msg;
+            banner.classList.remove('opacity-0', 'translate-y-4');
+            banner.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(banner._timer);
+            banner._timer = setTimeout(() => {
+                banner.classList.add('opacity-0', 'translate-y-4');
+                banner.classList.remove('opacity-100', 'translate-y-0');
+            }, 2600);
+        }
+
+        /********************************************************************
+         * 4. CẤU TRÚC DỮ LIỆU KHUNG CẢNH ĐÔ THỊ 2D & NHÂN VẬT
+         ********************************************************************/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let W = window.innerWidth;
+        let H = window.innerHeight;
+
+        const layout = {
+            skyBottom: 0,
+            roadTop: 0,
+            roadBottom: 0,
+            sidewalkY: 0
+        };
+
+        // Trạng thái trò chơi
+        const gameState = {
+            phase: 'idle', // 'idle' | 'morning_countdown' | 'ufo_hunting' | 'ufo_leaving' | 'summary'
+            timer: 0,
+            peaceDuration: 5,
+            targetAbductCount: 3,
+            abductedList: [], // Danh sách object những người đã bị bắt thực sự vào bụng UFO
+            currentBatch: [],   // Nhóm 1-3 người đang bị UFO chiếu tia sáng trong lượt hiện tại
+            lastDroppedIds: [], // Ghi nhớ những người vừa bị thả rơi để tạo kịch bản đổi người hoặc quay lại
+            willDoFakeout: false, // Lượt này UFO có thả rơi giữa chừng không (Tỉ lệ đã giảm xuống ~25%)
+            fakeoutDecision: 'switch', // 'resnatch' | 'switch'
+            specialMode: 'none', // 'none' | 'time_freeze' | 'disco_hypnosis'
+            timeFrozen: false,
+            rejectCountThisMatch: 0,
+            maxRejectsPerMatch: 2,
+            chaosCooldown: 0,
+            timeScale: 1
+        };
+
+        // Các thực thể trong cảnh 2D
+        let clouds = [];
+        let birds = [];
+        let buildings = [];
+        let streetProps = []; // Cây xanh và cột điện để người dân bám víu
+        let bgVehicles = [];  // Xe cộ chạy trên đường (và có thể bị UFO hút bay lên!)
+        let citizens = [];    // Người dân mang tên đã nhập
+        let droppedItems = []; // Giày dép, cặp táp, ly trà sữa, xe máy rơi lại hoặc bay lơ lửng
+        let floatingLeaves = []; // Lá cây rụng và tia lửa điện khi giằng co
+        let chasingDogs = []; // Đàn chó đuổi & xe kèn giải cứu trên phố
+
+        // Thực thể đĩa bay UFO (Bay thấp hơn ở khoảng 24% chiều cao màn hình để không bao giờ bị thanh UI che thoại!)
+        const ufo = {
+            x: -200,
+            y: 170,
+            targetX: 400,
+            targetY: 170,
+            vx: 0,
+            vy: 0,
+            tilt: 0,
+            visible: false,
+            beamActive: false,
+            beamColorMode: 'normal', // 'normal' | 'super' | 'freeze' | 'disco'
+            beamRadius: 0,
+            targetBeamRadius: 65,
+            huntSubState: 'none',
+            // 'approaching' | 'clinging_low' | 'clinging_high' | 'lifting_first' | 'fakeout_drop' | 'fakeout_celebrate' | 're_snatch' | 'final_ascent' | 'celebrating' | 'spitting_out'
+            subTimer: 0,
+            speechText: null,
+            speechTimer: 0,
+            lightPhase: 0
+        };
+
+        function getUFOCruiseY() {
+            // Đảm bảo UFO luôn bay thấp dưới thanh HUD ít nhất 155px để hộp thoại trên đầu UFO hoàn toàn thông thoáng
+            return Math.max(158, Math.min(240, H * 0.24));
+        }
+
+        function updateLayoutDimensions() {
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W;
+            canvas.height = H;
+
+            layout.skyBottom = Math.floor(H * 0.67);
+            layout.sidewalkY = Math.floor(H * 0.77);
+            layout.roadTop = Math.floor(H * 0.78);
+            layout.roadBottom = H;
+        }
+
+        function initEnvironmentScene() {
+            updateLayoutDimensions();
+
+            // 1. Mây trắng bồng bềnh
+            clouds = [];
+            for (let i = 0; i < 8; i++) {
+                clouds.push({
+                    x: Math.random() * W,
+                    y: H * (0.07 + Math.random() * 0.22),
+                    scale: 0.65 + Math.random() * 0.75,
+                    speed: 6 + Math.random() * 10
+                });
+            }
+
+            // 2. Đàn chim buổi sáng
+            birds = [];
+            for (let i = 0; i < 6; i++) {
+                birds.push({
+                    x: Math.random() * W,
+                    y: H * (0.12 + Math.random() * 0.16),
+                    speed: 25 + Math.random() * 20,
+                    wingPhase: Math.random() * Math.PI * 2
+                });
+            }
+
+            // 3. Các tòa nhà cao tầng san sát phía sau (Chiều cao ngẫu nhiên & Đa dạng kiến trúc!)
+            buildings = [];
+            const buildingColors = [
+                { body: '#cbd5e1', side: '#94a3b8', win: '#e0f2fe', accent: '#3b82f6', roof: '#475569' },
+                { body: '#e2e8f0', side: '#cbd5e1', win: '#fef9c3', accent: '#f59e0b', roof: '#64748b' },
+                { body: '#bfdbfe', side: '#93c5fd', win: '#f0f9ff', accent: '#0284c7', roof: '#1d4ed8' },
+                { body: '#ddd6fe', side: '#c4b5fd', win: '#fae8ff', accent: '#8b5cf6', roof: '#5b21b6' },
+                { body: '#fed7aa', side: '#fdba74', win: '#fffbeb', accent: '#ea580c', roof: '#9a3412' },
+                { body: '#bbf7d0', side: '#86efac', win: '#f0fdf4', accent: '#10b981', roof: '#047857' },
+                { body: '#fecdd3', side: '#fda4af', win: '#fff1f2', accent: '#e11d48', roof: '#881337' },
+                { body: '#fde68a', side: '#fcd34d', win: '#fefce8', accent: '#d97706', roof: '#78350f' }
+            ];
+            const archTypes = [
+                'skyscraper_glass', // Cao ốc kính hiện đại
+                'stepped_empire',   // Tòa tháp giật cấp nhiều tầng kiểu Art Deco
+                'vn_tube_house',    // Nhà ống Việt Nam mái ngói đỏ & bồn nước inox
+                'dome_luxury',      // Tòa nhà mái vòm cổ điển sang trọng
+                'slanted_modern',   // Tháp kiến trúc mái chéo phá cách
+                'vintage_apt'       // Chung cư có ban công & cây xanh
+            ];
+            const billboards = [
+                "TRÀ SỮA UFO", "PHỞ HÀ NỘI", "CÀ PHÊ SÁNG", "BÁNH MÌ 24H",
+                "SIÊU THỊ 5 SAO", "GYM & YOGA", "BÚN BÒ HUẾ", "LẨU NƯỚNG", "TÓP TÓP TREND"
+            ];
+
+            let curX = -15;
+            let idx = 0;
+            while (curX < W + 60) {
+                const arch = archTypes[Math.floor(Math.random() * archTypes.length)];
+                let bw = Math.floor(64 + Math.random() * 52);
+                let heightRatio = 0.22 + Math.random() * 0.34;
+                if (arch === 'vn_tube_house') {
+                    bw = Math.floor(48 + Math.random() * 24);
+                    heightRatio = 0.18 + Math.random() * 0.16;
+                } else if (arch === 'skyscraper_glass' || arch === 'stepped_empire') {
+                    bw = Math.floor(78 + Math.random() * 45);
+                    heightRatio = 0.36 + Math.random() * 0.21;
+                }
+
+                const bh = Math.floor(H * heightRatio);
+                const palette = buildingColors[Math.floor(Math.random() * buildingColors.length)];
+                const winStyle = ['grid', 'horizontal_band', 'arched', 'balcony'][Math.floor(Math.random() * 4)];
+
+                buildings.push({
+                    x: curX,
+                    y: layout.skyBottom - bh,
+                    w: bw,
+                    h: bh,
+                    arch,
+                    winStyle,
+                    palette,
+                    hasWaterTank: arch === 'vn_tube_house' || arch === 'vintage_apt' || Math.random() < 0.35,
+                    hasRoofGarden: Math.random() < 0.4,
+                    billboard: Math.random() < 0.48 ? billboards[Math.floor(Math.random() * billboards.length)] : null,
+                    shopName: ["COFFEE", "MART", "BAKERY", "PHỞ 24", "TEA", "FASHION"][idx % 6],
+                    shopColor: ['#ef4444', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#06b6d4'][idx % 6]
+                });
+                curX += bw - Math.floor(2 + Math.random() * 5);
+                idx++;
+            }
+
+            // 4. Cây xanh & Cột điện dọc vỉa hè (Để người dân bám víu khi UFO hút!)
+            streetProps = [];
+            const propSpacing = Math.max(125, Math.floor(W / 8));
+            let toggleType = 0;
+            for (let px = 75; px < W - 65; px += propSpacing) {
+                streetProps.push({
+                    id: toggleType,
+                    type: toggleType % 2 === 0 ? 'tree' : 'pole',
+                    x: px + (Math.random() * 18 - 9),
+                    y: layout.sidewalkY,
+                    bendAngle: 0,
+                    shakeTimer: 0
+                });
+                toggleType++;
+            }
+
+            // 5. Xe cộ & vật thể trên đường phố (Có thể bị UFO hút bay lên!)
+            bgVehicles = [];
+            const vTypes = ['bus', 'sedan', 'taxi', 'boba_cart', 'banhmi_cart', 'cow', 'trash_bin'];
+            for (let i = 0; i < 6; i++) {
+                spawnStreetVehicle(vTypes[i % vTypes.length], Math.random() * W);
+            }
+        }
+
+        function spawnStreetVehicle(forcedType = null, customX = null) {
+            const types = ['bus', 'sedan', 'taxi', 'scooter_npc', 'boba_cart', 'banhmi_cart', 'cow', 'trash_bin'];
+            const type = forcedType || types[Math.floor(Math.random() * types.length)];
+            const dir = Math.random() < 0.5 ? 1 : -1;
+            const laneY = dir === 1 ? layout.roadTop + (H - layout.roadTop) * 0.62 : layout.roadTop + (H - layout.roadTop) * 0.25;
+            let baseSpeed = 48 + Math.random() * 38;
+            if (type === 'boba_cart' || type === 'banhmi_cart' || type === 'cow') baseSpeed = 22 + Math.random() * 15;
+            if (type === 'trash_bin') baseSpeed = 0;
+
+            const colors = ['#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
+
+            bgVehicles.push({
+                type,
+                x: customX !== null ? customX : (dir === 1 ? -140 : W + 140),
+                y: type === 'trash_bin' ? layout.sidewalkY + 4 : laneY,
+                baseY: type === 'trash_bin' ? layout.sidewalkY + 4 : laneY,
+                dir: type === 'trash_bin' ? 1 : dir,
+                speed: baseSpeed,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                beingSucked: false,
+                rotation: 0,
+                scale: 1,
+                label: type === 'boba_cart' ? 'TRÀ SỮA' : (type === 'banhmi_cart' ? 'BÁNH MÌ' : '')
+            });
+        }
+
+        function createCitizen(name, index, total) {
+            const margin = 70;
+            const usableW = Math.max(200, W - margin * 2);
+            const x = margin + ((index + 0.5) / Math.max(1, total)) * usableW + (Math.random() * 20 - 10);
+            const depthOffset = (index % 5) * 8;
+            const y = layout.sidewalkY + 12 + depthOffset;
+
+            const outfits = [
+                { style: 'suit', top: '#1e293b', bottom: '#0f172a', tie: '#ef4444', shirt: '#ffffff' },
+                { style: 'office', top: '#2563eb', bottom: '#1e293b', tie: '#f59e0b', shirt: '#f8fafc' },
+                { style: 'aodai', top: '#e11d48', bottom: '#ffffff', tie: '#fda4af', shirt: '#ffe4e6' },
+                { style: 'dress', top: '#8b5cf6', bottom: '#7c3aed', tie: '#fde047', shirt: '#f3e8ff' },
+                { style: 'vest', top: '#059669', bottom: '#1e293b', tie: '#fbbf24', shirt: '#ecfdf5' },
+                { style: 'casual_chic', top: '#ea580c', bottom: '#334155', tie: '#38bdf8', shirt: '#fff7ed' }
+            ];
+
+            const isMotorbike = (index % 4 === 1);
+            const bikeColors = ['#dc2626', '#0284c7', '#d97706', '#059669', '#7c3aed'];
+
+            return {
+                id: index + 1,
+                name,
+                x,
+                y,
+                baseY: y,
+                vx: (index % 2 === 0 ? 1 : -1) * (isMotorbike ? 52 : 28) * (0.85 + Math.random() * 0.3),
+                vy: 0,
+                dir: index % 2 === 0 ? 1 : -1,
+                isMotorbike,
+                hasBikeNow: isMotorbike,
+                bikeColor: bikeColors[index % bikeColors.length],
+                outfit: outfits[index % outfits.length],
+                hairStyle: index % 3,
+                accessory: ['briefcase', 'coffee', 'boba', 'none'][index % 4],
+                walkCycle: Math.random() * Math.PI * 2,
+                state: 'strolling',
+                // 'strolling' | 'panicking' | 'clinging_low' | 'clinging_high' | 'lifting' | 'falling_free' | 'celebrating_escape' | 'resnatched' | 'abducted'
+                airGag: ['umbrella_flip', 'selfie_flash', 'air_swim', 'human_chain', 'hold_pants'][index % 5],
+                timesDropped: 0,
+                targetProp: null,
+                batchOffsetIndex: 0,
+                rotation: 0,
+                scale: 1,
+                speechText: index % 4 === 0 ? MORNING_CHATS[index % MORNING_CHATS.length] : null,
+                speechTimer: 3 + Math.random() * 3,
+                abductReason: FUNNY_ABDUCTION_REASONS[index % FUNNY_ABDUCTION_REASONS.length]
+            };
+        }
+
+        function syncCitizensWithInputNames() {
+            const names = getParsedNames();
+            citizens = names.map((name, idx) => createCitizen(name, idx, names.length));
+            droppedItems = [];
+            floatingLeaves = [];
+            updateHUD();
+        }
+
+        /********************************************************************
+         * 5. ĐIỀU KHIỂN LUỒNG TRÒ CHƠI & KỊCH BẢN UFO BẮT CÓC
+         ********************************************************************/
+        function startNewGameFromMenu() {
+            const names = getParsedNames();
+            if (names.length === 0) {
+                showToast('⚠️ Vui lòng nhập ít nhất 1 tên người trên phố!');
+                return;
+            }
+
+            ensureAudio();
+            closeSetupModal();
+            document.getElementById('summaryModal').classList.add('hidden');
+            document.getElementById('summaryModal').classList.remove('flex');
+
+            const abductCount = Math.min(names.length, Math.max(1, parseInt(document.getElementById('abductCountSlider').value) || 1));
+            const peaceTime = Math.max(3, parseInt(document.getElementById('peaceTimeSlider').value) || 5);
+
+            syncCitizensWithInputNames();
+
+            gameState.abductedList = [];
+            gameState.targetAbductCount = abductCount;
+            gameState.peaceDuration = peaceTime;
+            gameState.timer = peaceTime;
+            gameState.phase = 'morning_countdown';
+            gameState.currentBatch = [];
+            gameState.lastDroppedIds = [];
+            gameState.specialMode = 'none';
+            gameState.timeFrozen = false;
+            gameState.rejectCountThisMatch = 0;
+
+            ufo.visible = false;
+            ufo.x = -180;
+            ufo.y = getUFOCruiseY();
+            ufo.beamActive = false;
+            ufo.beamColorMode = 'normal';
+            ufo.beamRadius = 0;
+            ufo.huntSubState = 'none';
+            ufo.speechText = null;
+
+            citizens.forEach((c, idx) => {
+                if (idx % 3 === 0) {
+                    c.speechText = MORNING_CHATS[Math.floor(Math.random() * MORNING_CHATS.length)];
+                    c.speechTimer = 4.2;
+                }
+            });
+
+            updateHUD();
+            renderLiveAbductedBadges();
+        }
+
+        function triggerUFOArrival() {
+            gameState.phase = 'ufo_hunting';
+            ufo.visible = true;
+            ufo.x = -140;
+            ufo.y = getUFOCruiseY();
+            ufo.targetX = W * 0.5;
+            ufo.targetY = getUFOCruiseY();
+            ufo.speechText = "Hé lô Trái Đất! Hôm nay chọn ngẫu nhiên ai đây ta?!";
+            ufo.speechTimer = 3.5;
+            playSound('ufo_arrive');
+
+            citizens.forEach((c) => {
+                c.state = 'panicking';
+                c.targetProp = findNearestStreetProp(c.x);
+                c.speechText = PANIC_SCREAMS[Math.floor(Math.random() * PANIC_SCREAMS.length)];
+                c.speechTimer = 4.0 + Math.random() * 2;
+            });
+
+            selectNextBatchForUFO(false);
+            updateHUD();
+        }
+
+        function findNearestStreetProp(xPos) {
+            if (streetProps.length === 0) return null;
+            let best = streetProps[0];
+            let minDist = Math.abs(xPos - best.x);
+            for (let i = 1; i < streetProps.length; i++) {
+                const d = Math.abs(xPos - streetProps[i].x);
+                if (d < minDist) {
+                    minDist = d;
+                    best = streetProps[i];
+                }
+            }
+            return best;
+        }
+
+        // Cơ chế sáng tạo: UFO bất ngờ chê người đã bắt trong bụng tàu (vì nặng/ăn mắm tôm/hát ồn) và ném trả xuống đường!
+        function triggerUFORejectAlreadyAbducted() {
+            if (gameState.abductedList.length === 0) return false;
+
+            const randomIdx = Math.floor(Math.random() * gameState.abductedList.length);
+            const rejectedVictim = gameState.abductedList.splice(randomIdx, 1)[0];
+            gameState.rejectCountThisMatch++;
+
+            const gag = UFO_REJECT_REASONS[Math.floor(Math.random() * UFO_REJECT_REASONS.length)];
+
+            playSound('spit_out');
+            ufo.beamActive = false;
+            ufo.huntSubState = 'spitting_out';
+            ufo.subTimer = 0;
+            ufo.speechText = gag.ufoQuote;
+            ufo.speechTimer = 4.2;
+
+            // Đưa nạn nhân từ trong bụng đĩa bay rơi trở lại xuống phố kèm chiếc dù nhỏ
+            rejectedVictim.state = 'ejected_falling';
+            rejectedVictim.x = ufo.x + (Math.random() * 30 - 15);
+            rejectedVictim.y = ufo.y + 18;
+            rejectedVictim.vy = 45;
+            rejectedVictim.scale = 1;
+            rejectedVictim.rotation = 0;
+            rejectedVictim.speechText = gag.victimQuote;
+            rejectedVictim.speechTimer = 4.5;
+            rejectedVictim.timesDropped = (rejectedVictim.timesDropped || 0) + 1;
+
+            // Ghi nhớ để UFO ưu tiên đi bắt người khác thay thế
+            gameState.lastDroppedIds = [rejectedVictim.id];
+
+            renderLiveAbductedBadges();
+            updateHUD();
+            showToast(`🤮 ${gag.toast.replace('{name}', rejectedVictim.name)}`);
+            return true;
+        }
+
+        function selectNextBatchForUFO(preferDifferentFromLastDrop = false) {
+            gameState.timeFrozen = false;
+            gameState.specialMode = 'none';
+
+            const specialEnabled = document.getElementById('specialSkillsToggle') ? document.getElementById('specialSkillsToggle').checked : true;
+            const availablePoolBeforeReject = citizens.filter(c => c.state !== 'abducted' && c.state !== 'ejected_falling');
+
+            // 1. Kiểm tra sự kiện bất ngờ: Đã bắt được ít nhất 1 người -> Có 28% cơ hội UFO "ọe" vứt trả 1 người xuống phố!
+            if (
+                specialEnabled &&
+                !preferDifferentFromLastDrop &&
+                gameState.abductedList.length > 0 &&
+                gameState.rejectCountThisMatch < gameState.maxRejectsPerMatch &&
+                availablePoolBeforeReject.length > 0 &&
+                Math.random() < 0.28
+            ) {
+                if (triggerUFORejectAlreadyAbducted()) {
+                    return;
+                }
+            }
+
+            const needed = gameState.targetAbductCount - gameState.abductedList.length;
+            const availablePool = citizens.filter(c => c.state !== 'abducted');
+
+            if (needed <= 0 || availablePool.length === 0) {
+                gameState.phase = 'ufo_leaving';
+                gameState.currentBatch = [];
+                gameState.timeFrozen = false;
+                ufo.beamActive = false;
+                ufo.speechText = "Đủ chỉ tiêu hàng tuyển rồi! Bay về Sao Hỏa thôi!!";
+                ufo.speechTimer = 3.2;
+                ufo.targetX = W + 260;
+                ufo.targetY = -100;
+                playSound('victory');
+                updateHUD();
+                setTimeout(() => {
+                    showSummaryScreen();
+                }, 1800);
+                return;
+            }
+
+            const batchMode = document.getElementById('batchModeSelect').value;
+            let batchSize = 1;
+            if (batchMode === 'single') {
+                batchSize = 1;
+            } else if (batchMode === 'multi') {
+                batchSize = Math.random() < 0.5 ? 2 : 3;
+            } else {
+                const r = Math.random();
+                if (r < 0.48) batchSize = 1;
+                else if (r < 0.82) batchSize = 2;
+                else batchSize = 3;
+            }
+            batchSize = Math.min(batchSize, needed, availablePool.length);
+
+            let candidatePool = [...availablePool];
+            if (preferDifferentFromLastDrop && gameState.lastDroppedIds.length > 0) {
+                const others = availablePool.filter(c => !gameState.lastDroppedIds.includes(c.id));
+                if (others.length >= batchSize) {
+                    candidatePool = others;
+                } else if (others.length > 0) {
+                    candidatePool = [...others, ...availablePool.filter(c => gameState.lastDroppedIds.includes(c.id))];
+                }
+            }
+
+            for (let i = candidatePool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [candidatePool[i], candidatePool[j]] = [candidatePool[j], candidatePool[i]];
+            }
+
+            gameState.currentBatch = candidatePool.slice(0, batchSize);
+
+            const avgX = gameState.currentBatch.reduce((sum, p) => sum + p.x, 0) / gameState.currentBatch.length;
+            const sharedProp = findNearestStreetProp(avgX);
+
+            const airGagPool = ['umbrella_flip', 'selfie_flash', 'air_swim', 'human_chain', 'hold_pants'];
+
+            // 2. Quyết định xem lượt này UFO dùng chiêu gì (Bình thường, Đóng băng thời gian, hay Thôi miên nhảy Disco)
+            if (specialEnabled) {
+                const skillRoll = Math.random();
+                if (skillRoll < 0.20) {
+                    gameState.specialMode = 'time_freeze';
+                } else if (skillRoll < 0.36) {
+                    gameState.specialMode = 'disco_hypnosis';
+                } else {
+                    gameState.specialMode = 'none';
+                }
+            }
+
+            gameState.currentBatch.forEach((victim, idx) => {
+                victim.state = 'panicking';
+                victim.rotation = 0;
+                victim.targetProp = sharedProp;
+                victim.batchOffsetIndex = idx;
+                victim.airGag = (batchSize > 1 && idx > 0 && Math.random() < 0.55)
+                    ? 'human_chain'
+                    : airGagPool[Math.floor(Math.random() * airGagPool.length)];
+
+                if (victim.timesDropped > 0) {
+                    victim.speechText = "Ủa sao nãy thả em ra rồi giờ lại nhắm vào em?!";
+                    victim.abductReason = "Tưởng đã thoát nạn nhưng cuối cùng vẫn bị UFO điểm danh lại";
+                } else {
+                    victim.speechText = PANIC_SCREAMS[Math.floor(Math.random() * PANIC_SCREAMS.length)];
+                }
+                victim.speechTimer = 3.2;
+            });
+
+            ufo.targetBeamRadius = 56 + (batchSize - 1) * 24;
+            ufo.beamColorMode = 'normal';
+            ufo.huntSubState = 'approaching';
+            ufo.subTimer = 0;
+            ufo.beamActive = false;
+
+            // 3. Tỉ lệ UFO "nhấp nhả" đã được giảm xuống 24% (và chỉ xảy ra khi không bật Đóng băng thời gian)
+            const fakeoutEnabled = document.getElementById('fakeoutToggle').checked;
+            gameState.willDoFakeout = (gameState.specialMode === 'none') && fakeoutEnabled && (Math.random() < 0.24);
+            if (gameState.willDoFakeout) {
+                const otherChoicesCount = availablePool.length - batchSize;
+                if (otherChoicesCount > 0 && Math.random() < 0.65) {
+                    gameState.fakeoutDecision = 'switch';
+                } else {
+                    gameState.fakeoutDecision = 'resnatch';
+                }
+            }
+
+            if (preferDifferentFromLastDrop) {
+                ufo.speechText = "Thôi đổi ý! Qua hốt mục tiêu mới bên này chất lượng hơn!!";
+                ufo.speechTimer = 3.0;
+            } else if (gameState.specialMode === 'time_freeze') {
+                ufo.speechText = TIME_FREEZE_UFO_QUOTES[Math.floor(Math.random() * TIME_FREEZE_UFO_QUOTES.length)];
+                ufo.speechTimer = 3.2;
+            } else if (gameState.specialMode === 'disco_hypnosis') {
+                ufo.speechText = DISCO_UFO_QUOTES[Math.floor(Math.random() * DISCO_UFO_QUOTES.length)];
+                ufo.speechTimer = 3.2;
+            } else if (batchSize > 1) {
+                ufo.speechText = `Hút комбо ${batchSize} người một lượt luôn nè!!`;
+                ufo.speechTimer = 2.8;
+            } else {
+                ufo.speechText = UFO_FUNNY_THOUGHTS[Math.floor(Math.random() * UFO_FUNNY_THOUGHTS.length)];
+                ufo.speechTimer = 2.5;
+            }
+
+            updateHUD();
+        }
+
+        // NÂNG CẤP NÚT THẢ CHÓ & BẤM CÒI: Có tác dụng thực sự làm gián đoạn tia hút của UFO, giải cứu người đang ôm cây và xáo trộn vị trí!
+        function triggerStreetChaosGag() {
+            if (gameState.chaosCooldown > 0) {
+                showToast(`⏳ Đợi ${Math.ceil(gameState.chaosCooldown)}s để đàn chó và xe kèn nạp lại năng lượng!`);
+                return;
+            }
+
+            gameState.chaosCooldown = 4.0;
+            playSound('horn');
+
+            // Thả liền 2 chú chó chạy từ 2 hướng + bật hiệu ứng còi xe inh ỏi
+            chasingDogs.push(
+                { x: -50, y: layout.sidewalkY + 22, dir: 1, speed: 290, barkTimer: 0, color: '#d97706', label: 'Gâu gâu!! Giải cứu!!' },
+                { x: W + 50, y: layout.sidewalkY + 30, dir: -1, speed: 270, barkTimer: 0.3, color: '#92400e', label: 'Ẳng ẳng!! Cắn đĩa bay!!' }
+            );
+
+            // Nếu đang đóng băng thời gian thì tiếng chó sủa + còi xe phá vỡ luôn hiệu ứng đóng băng!
+            if (gameState.timeFrozen) {
+                gameState.timeFrozen = false;
+                gameState.specialMode = 'none';
+            }
+
+            // Xáo trộn tốc độ và hướng chạy của tất cả người dân dưới đất
+            citizens.forEach(c => {
+                if (c.state === 'strolling' || c.state === 'panicking') {
+                    c.speechText = "Á á chó dí + xe bóp kèn! Chạy đổi chỗ lẹ bà con ơi!!";
+                    c.speechTimer = 2.8;
+                    c.dir = Math.random() < 0.5 ? 1 : -1;
+                    c.vx = c.dir * (110 + Math.random() * 60);
+                }
+            });
+
+            // TÁC ĐỘNG QUAN TRỌNG: Nếu UFO đang chuẩn bị hút hoặc đang giằng co (clinging_low / clinging_high),
+            // tiếng còi & chó sủa làm UFO giật mình mất tia sáng, làm rớt nạn nhân xuống và buộc phải chọn mục tiêu ngẫu nhiên khác!
+            if (
+                gameState.phase === 'ufo_hunting' &&
+                gameState.currentBatch.length > 0 &&
+                ['approaching', 'clinging_low', 'clinging_high'].includes(ufo.huntSubState)
+            ) {
+                const rescuedNames = gameState.currentBatch.map(v => v.name).join(', ');
+                gameState.lastDroppedIds = gameState.currentBatch.map(v => v.id);
+
+                gameState.currentBatch.forEach(v => {
+                    v.state = 'panicking';
+                    v.y = v.baseY;
+                    v.rotation = 0;
+                    v.dir = Math.random() < 0.5 ? 1 : -1;
+                    v.vx = v.dir * 130;
+                    v.speechText = "May quá nhờ chó đuổi với tiếng kèn xe làm UFO giật mình thả ra!!";
+                    v.speechTimer = 3.5;
+                });
+
+                ufo.beamActive = false;
+                ufo.tilt = -0.25;
+                ufo.speechText = "Á đù! Chó sủa + kèn xe inh ỏi giật cả mình! Lệch tâm ngắm rồi, đi bắt đứa khác!!";
+                ufo.speechTimer = 3.4;
+
+                selectNextBatchForUFO(true);
+                showToast(`🐕🎺 Đã phá đám UFO! Giải cứu thành công ${rescuedNames} và ép UFO đổi mục tiêu!`);
+            } else {
+                showToast('🐕🎺 Đàn chó & tiếng còi đã làm cả phố chạy tán loạn đổi vị trí!');
+            }
+        }
+
+        function toggleGameSpeed() {
+            if (gameState.timeScale === 1) gameState.timeScale = 1.5;
+            else if (gameState.timeScale === 1.5) gameState.timeScale = 0.75;
+            else gameState.timeScale = 1;
+
+            document.getElementById('speedToggleBtn').textContent = `⏩ ${gameState.timeScale}x`;
+        }
+
+        function updateHUD() {
+            const icon = document.getElementById('hudPhaseIcon');
+            const title = document.getElementById('hudPhaseTitle');
+            const sub = document.getElementById('hudPhaseSub');
+
+            if (gameState.phase === 'idle') {
+                icon.textContent = '🌤️';
+                title.textContent = 'ĐƯỜNG PHỐ BUỔI SÁNG TRONG LÀNH';
+                sub.textContent = `Đang có ${citizens.length} người trên phố — Bấm Menu để bắt đầu`;
+            } else if (gameState.phase === 'morning_countdown') {
+                icon.textContent = '☕';
+                title.textContent = `BUỔI SÁNG BÌNH YÊN (${Math.ceil(gameState.timer)}s)`;
+                sub.textContent = 'Mọi người đang đi bộ & chạy xe máy đi làm...';
+            } else if (gameState.phase === 'ufo_hunting') {
+                icon.textContent = '🛸';
+                const currentNames = gameState.currentBatch.map(p => p.name).join(', ');
+                title.textContent = `UFO ĐANG BẮT CÓC (${gameState.abductedList.length} / ${gameState.targetAbductCount})`;
+                if (ufo.huntSubState === 'spitting_out') {
+                    sub.textContent = `🤮 UFO chê nạn nhân và vừa ném trả lại xuống đường phố!`;
+                } else if (gameState.timeFrozen) {
+                    sub.textContent = `⏱️ ĐÓNG BĂNG THỜI GIAN! Hút thẳng ${currentNames} không kịp chống cự!`;
+                } else if (gameState.specialMode === 'disco_hypnosis' && ufo.beamActive) {
+                    sub.textContent = `🪩 Tia nhạc Disco thôi miên ${currentNames} tự nhảy lên tàu!`;
+                } else if (ufo.huntSubState === 'fakeout_drop' || ufo.huntSubState === 'fakeout_celebrate') {
+                    sub.textContent = `Nhấp nhả: Tắt đèn thả rơi ${currentNames}! Liệu UFO có đổi mục tiêu?`;
+                } else if (ufo.huntSubState === 're_snatch') {
+                    sub.textContent = `Quay xe cực gắt: Hút lại ${currentNames}!!`;
+                } else {
+                    sub.textContent = `Đang chiếu tia sáng vào: ${currentNames || '...'}`;
+                }
+            } else if (gameState.phase === 'ufo_leaving') {
+                icon.textContent = '✨';
+                title.textContent = 'ĐÃ BẮT ĐỦ SỐ LƯỢNG!';
+                sub.textContent = 'Đĩa bay đang tăng tốc rời khỏi Trái Đất...';
+            } else if (gameState.phase === 'summary') {
+                icon.textContent = '🏆';
+                title.textContent = 'HOÀN TẤT MÀN BẮT CÓC';
+                sub.textContent = `Đã bắt thành công ${gameState.abductedList.length} người!`;
+            }
+        }
+
+        function renderLiveAbductedBadges() {
+            const container = document.getElementById('liveAbductedContainer');
+            const listEl = document.getElementById('liveAbductedBadges');
+            if (gameState.abductedList.length === 0) {
+                container.classList.add('hidden');
+                listEl.innerHTML = '';
+                return;
+            }
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+            listEl.innerHTML = gameState.abductedList.map((p, idx) => `
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 text-xs font-bold whitespace-nowrap">
+                    #${idx + 1} ${escapeHtml(p.name)}
+                </span>
+            `).join('');
+        }
+
+        function showSummaryScreen() {
+            gameState.phase = 'summary';
+            updateHUD();
+
+            const modal = document.getElementById('summaryModal');
+            const listEl = document.getElementById('summaryWinnersList');
+            const subEl = document.getElementById('summarySubtitle');
+            const continueBtn = document.getElementById('continueWithoutWinnersBtn');
+
+            subEl.textContent = `UFO đã hoàn tất chuyến săn và rước ${gameState.abductedList.length} người lên đĩa bay!`;
+
+            listEl.innerHTML = gameState.abductedList.map((victim, i) => `
+                <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-emerald-500/40 transition">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 text-slate-950 font-black flex items-center justify-center text-base shadow">
+                            #${i + 1}
+                        </div>
+                        <div>
+                            <div class="text-base sm:text-lg font-black text-white">${escapeHtml(victim.name)}</div>
+                            <div class="text-xs text-emerald-300/90 italic">✨ ${escapeHtml(victim.abductReason)}</div>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold whitespace-nowrap">
+                        🛸 Đã lên đĩa bay
+                    </span>
+                </div>
+            `).join('');
+
+            const remainingCount = getParsedNames().length - gameState.abductedList.length;
+            if (remainingCount > 0) {
+                continueBtn.classList.remove('hidden');
+                continueBtn.textContent = `🔄 Bắt tiếp (Còn ${remainingCount} người dưới phố)`;
+            } else {
+                continueBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function copyAbductedResults() {
+            const text = gameState.abductedList
+                .map((p, i) => `${i + 1}. ${p.name} (${p.abductReason})`)
+                .join('\n');
+            const temp = document.createElement('textarea');
+            temp.value = `🛸 DANH SÁCH BỊ UFO BẮT CÓC:\n${text}`;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast('📋 Đã sao chép danh sách người bị bắt vào bộ nhớ tạm!');
+        }
+
+        function replaySameList() {
+            startNewGameFromMenu();
+        }
+
+        function continueGameRemoveAbducted() {
+            const abductedNames = new Set(gameState.abductedList.map(p => p.name));
+            const remaining = getParsedNames().filter(n => !abductedNames.has(n));
+            if (remaining.length === 0) {
+                showToast('Tất cả mọi người trên phố đều đã bị bắt hết!');
+                return;
+            }
+            document.getElementById('namesInput').value = remaining.join('\n');
+            handleNamesInputChange();
+            startNewGameFromMenu();
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, s => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[s]));
+        }
+
+        /********************************************************************
+         * 6. VÒNG LẶP CẬP NHẬT VẬT LÝ & ANIMATION HÀI HƯỚC CHI TIẾT
+         ********************************************************************/
+        function spawnLeafOrSpark(x, y, type) {
+            for (let i = 0; i < 4; i++) {
+                floatingLeaves.push({
+                    x: x + (Math.random() * 26 - 13),
+                    y: y + (Math.random() * 16 - 8),
+                    vx: (Math.random() - 0.5) * 70,
+                    vy: -20 - Math.random() * 60,
+                    type,
+                    life: 1.0 + Math.random() * 0.6,
+                    rot: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function updateSimulation(rawDt) {
+            const dt = Math.min(0.05, rawDt) * gameState.timeScale;
+
+            // Cập nhật hồi chiêu nút Thả Chó & Bóp Kèn Phá UFO
+            if (gameState.chaosCooldown > 0) {
+                gameState.chaosCooldown = Math.max(0, gameState.chaosCooldown - rawDt);
+                const btnText = document.getElementById('chaosGagBtnText');
+                if (btnText) {
+                    btnText.textContent = gameState.chaosCooldown > 0
+                        ? `Hồi chiêu (${Math.ceil(gameState.chaosCooldown)}s)`
+                        : 'Thả Chó & Bóp Kèn (Phá UFO)';
+                }
+            }
+
+            // Khi UFO bật ĐÓNG BĂNG THỜI GIAN, mây, chim và xe cộ dưới phố đứng im hoàn toàn!
+            const envDt = gameState.timeFrozen ? 0 : dt;
+
+            // 1. Mây & Chim bay
+            clouds.forEach(c => {
+                c.x += c.speed * envDt;
+                if (c.x > W + 160) c.x = -160;
+            });
+            birds.forEach(b => {
+                b.x += b.speed * envDt;
+                b.wingPhase += 9 * envDt;
+                if (b.x > W + 80) b.x = -80;
+            });
+
+            // 2. Đàn chó đuổi giải cứu trên vỉa hè
+            for (let i = chasingDogs.length - 1; i >= 0; i--) {
+                const dog = chasingDogs[i];
+                dog.x += dog.dir * dog.speed * dt;
+                dog.barkTimer += dt;
+                if ((dog.dir === 1 && dog.x > W + 120) || (dog.dir === -1 && dog.x < -120)) {
+                    chasingDogs.splice(i, 1);
+                }
+            }
+
+            // 3. Đếm ngược buổi sáng yên bình (5 giây mặc định)
+            if (gameState.phase === 'morning_countdown') {
+                gameState.timer -= dt;
+                if (Math.ceil(gameState.timer) !== Math.ceil(gameState.timer + dt)) {
+                    updateHUD();
+                }
+                if (gameState.timer <= 0) {
+                    triggerUFOArrival();
+                }
+            }
+
+            // 4. Cập nhật xe cộ & vật thể trên đường (Bao gồm hiệu ứng bị UFO hút bay lên!)
+            const allowSuckVehicles = document.getElementById('suckVehiclesToggle').checked;
+            for (let i = bgVehicles.length - 1; i >= 0; i--) {
+                const v = bgVehicles[i];
+
+                if (allowSuckVehicles && ufo.visible && ufo.beamActive && !v.beingSucked && !gameState.timeFrozen) {
+                    const distToBeam = Math.abs(v.x - ufo.x);
+                    if (distToBeam < ufo.beamRadius * 0.85 && Math.random() < 1.3 * dt) {
+                        v.beingSucked = true;
+                    }
+                }
+
+                if (v.beingSucked) {
+                    v.x += (ufo.x - v.x) * Math.min(1, dt * 3.5);
+                    v.y -= 105 * dt;
+                    v.rotation += 2.6 * dt;
+                    if (v.y < ufo.y + 45) {
+                        v.scale = Math.max(0.05, (v.y - ufo.y) / 45);
+                    }
+                    if (v.y <= ufo.y + 10) {
+                        playSound('pop_abduct');
+                        bgVehicles.splice(i, 1);
+                        spawnStreetVehicle();
+                        continue;
+                    }
+                } else {
+                    const speedMult = (gameState.phase === 'ufo_hunting') ? 1.65 : 1.0;
+                    v.x += v.dir * v.speed * speedMult * envDt;
+                    if (v.dir === 1 && v.x > W + 180) {
+                        v.x = -160;
+                    } else if (v.dir === -1 && v.x < -180) {
+                        v.x = W + 160;
+                    }
+                }
+            }
+
+            // 5. Cập nhật trạng thái UFO và các giai đoạn giằng co kịch tính
+            if (ufo.visible) {
+                ufo.lightPhase += 7 * dt;
+                if (ufo.speechTimer > 0) {
+                    ufo.speechTimer -= dt;
+                    if (ufo.speechTimer <= 0) ufo.speechText = null;
+                }
+
+                // Xử lý trạng thái UFO đang ném trả người bị chê xuống đất
+                if (gameState.phase === 'ufo_hunting' && ufo.huntSubState === 'spitting_out') {
+                    ufo.subTimer += dt;
+                    ufo.tilt = Math.sin(ufo.subTimer * 28) * 0.18;
+                    if (ufo.subTimer >= 2.2) {
+                        ufo.tilt = 0;
+                        selectNextBatchForUFO(true);
+                    }
+                } else if (gameState.phase === 'ufo_hunting' && gameState.currentBatch.length > 0) {
+                    const batch = gameState.currentBatch;
+                    const primaryVictim = batch[0];
+                    const prop = primaryVictim.targetProp;
+                    const anchorX = (gameState.specialMode === 'time_freeze' || gameState.specialMode === 'disco_hypnosis')
+                        ? primaryVictim.x
+                        : (prop ? prop.x : primaryVictim.x);
+
+                    if (ufo.huntSubState !== 'fakeout_drop' && ufo.huntSubState !== 'fakeout_celebrate') {
+                        ufo.targetX = anchorX;
+                        ufo.targetY = getUFOCruiseY();
+                        const dx = ufo.targetX - ufo.x;
+                        ufo.vx = dx * 2.9;
+                        ufo.x += ufo.vx * dt;
+                        ufo.y = ufo.targetY + Math.sin(ufo.lightPhase * 0.7) * 6;
+                        ufo.tilt = Math.max(-0.18, Math.min(0.18, ufo.vx * 0.0008));
+                    }
+
+                    // --- GIAI ĐOẠN 1: UFO BAY TỚI ĐẦU MỤC TIÊU ---
+                    if (ufo.huntSubState === 'approaching') {
+                        if (Math.abs(ufo.x - anchorX) < 38) {
+                            ufo.beamActive = true;
+                            ufo.beamRadius = 15;
+                            ufo.subTimer = 0;
+
+                            // NHÁNH ĐẶC BIỆT 1: ĐÓNG BĂNG THỜI GIAN (Hút thẳng không kịp ôm cây!)
+                            if (gameState.specialMode === 'time_freeze') {
+                                gameState.timeFrozen = true;
+                                ufo.beamColorMode = 'freeze';
+                                ufo.huntSubState = 'lifting_first';
+                                playSound('time_freeze');
+
+                                batch.forEach((v, idx) => {
+                                    v.state = 'frozen_lifting';
+                                    v.abductReason = "Bị UFO đóng băng thời gian đứng hình không kịp kháng cự";
+                                    v.speechText = TIME_FREEZE_VICTIM_QUOTES[idx % TIME_FREEZE_VICTIM_QUOTES.length];
+                                    v.speechTimer = 3.4;
+                                });
+                                updateHUD();
+                            }
+                            // NHÁNH ĐẶC BIỆT 2: THÔI MIÊN NHẢY DISCO BAY LÊN TÀU
+                            else if (gameState.specialMode === 'disco_hypnosis') {
+                                ufo.beamColorMode = 'disco';
+                                ufo.huntSubState = 'lifting_first';
+                                playSound('disco');
+
+                                batch.forEach((v, idx) => {
+                                    v.state = 'disco_lifting';
+                                    v.abductReason = "Bị tia sáng Disco thôi miên vừa nhảy Tóp Tóp vừa bay lên đĩa bay";
+                                    v.speechText = DISCO_VICTIM_QUOTES[idx % DISCO_VICTIM_QUOTES.length];
+                                    v.speechTimer = 3.5;
+                                });
+                                updateHUD();
+                            }
+                            // NHÁNH THÔNG THƯỜNG: Bám gốc cây / chân cột điện
+                            else {
+                                ufo.beamColorMode = 'normal';
+                                ufo.huntSubState = 'clinging_low';
+                                playSound('beam_lock');
+
+                                batch.forEach((v, idx) => {
+                                    v.state = 'clinging_low';
+                                    if (v.hasBikeNow) {
+                                        v.hasBikeNow = false;
+                                        droppedItems.push({
+                                            type: 'scooter',
+                                            color: v.bikeColor,
+                                            x: v.x,
+                                            y: v.baseY,
+                                            vy: 0,
+                                            sucked: allowSuckVehicles && Math.random() < 0.75,
+                                            rot: 0
+                                        });
+                                    }
+                                    v.speechText = CLINGING_LOW_QUOTES[(v.id + idx) % CLINGING_LOW_QUOTES.length];
+                                    v.speechTimer = 3.2;
+                                });
+                                updateHUD();
+                            }
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 2: ÔM CHẶT GỐC CÂY / CHÂN CỘT ĐIỆN (2.3 GIÂY) ---
+                    else if (ufo.huntSubState === 'clinging_low') {
+                        ufo.subTimer += dt;
+                        ufo.beamRadius += (ufo.targetBeamRadius - ufo.beamRadius) * Math.min(1, dt * 6);
+
+                        batch.forEach((v, idx) => {
+                            const targetX = anchorX + (idx - (batch.length - 1) / 2) * 20;
+                            v.x += (targetX - v.x) * Math.min(1, dt * 8);
+                            const liftOffset = Math.min(24, (ufo.subTimer / 2.3) * 24);
+                            v.y = v.baseY - liftOffset + Math.sin(ufo.subTimer * 25 + idx) * 2;
+                        });
+
+                        if (prop) {
+                            prop.bendAngle = Math.sin(ufo.subTimer * 28) * 0.07 + 0.06;
+                        }
+
+                        if (ufo.subTimer >= 2.3) {
+                            ufo.huntSubState = 'clinging_high';
+                            ufo.subTimer = 0;
+                            playSound('slip_branch');
+
+                            batch.forEach((v, idx) => {
+                                v.state = 'clinging_high';
+                                v.speechText = CLINGING_HIGH_QUOTES[(v.id + idx) % CLINGING_HIGH_QUOTES.length];
+                                v.speechTimer = 3.2;
+                                droppedItems.push({
+                                    type: idx % 2 === 0 ? 'shoe' : 'bag',
+                                    color: '#f59e0b',
+                                    x: v.x,
+                                    y: v.y,
+                                    vy: -40,
+                                    sucked: false,
+                                    rot: 0
+                                });
+                            });
+
+                            if (prop) {
+                                spawnLeafOrSpark(prop.x, prop.y - 82, prop.type === 'tree' ? 'leaf' : 'spark');
+                            }
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 3: TRƯỢT TAY BAY LÊN NÍU CÀNH CÂY TRÊN / ĐỈNH CỘT ĐIỆN (2.3 GIÂY) ---
+                    else if (ufo.huntSubState === 'clinging_high') {
+                        ufo.subTimer += dt;
+                        const highY = (prop ? prop.y - 78 : primaryVictim.baseY - 78);
+
+                        batch.forEach((v, idx) => {
+                            const targetX = anchorX + (idx - (batch.length - 1) / 2) * 22;
+                            v.x += (targetX - v.x) * Math.min(1, dt * 8);
+                            v.y += (highY - idx * 14 - v.y) * Math.min(1, dt * 7);
+                        });
+
+                        if (prop) {
+                            prop.bendAngle = Math.sin(ufo.subTimer * 34) * 0.13 + 0.12;
+                            if (Math.random() < 5 * dt) {
+                                spawnLeafOrSpark(prop.x, prop.y - 88, prop.type === 'tree' ? 'leaf' : 'spark');
+                            }
+                        }
+
+                        if (ufo.subTimer >= 2.3) {
+                            if (prop) prop.bendAngle = -0.15;
+                            ufo.huntSubState = 'lifting_first';
+                            ufo.subTimer = 0;
+                            batch.forEach((v, idx) => {
+                                v.state = 'lifting';
+                                v.speechText = LIFTING_QUOTES[(v.id + idx) % LIFTING_QUOTES.length];
+                                v.speechTimer = 3.0;
+                            });
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 4: HÚT LƠ LỬNG LÊN GIỮA KHÔNG TRUNG ---
+                    else if (ufo.huntSubState === 'lifting_first') {
+                        ufo.subTimer += dt;
+                        ufo.beamRadius += (ufo.targetBeamRadius - ufo.beamRadius) * Math.min(1, dt * 6);
+
+                        batch.forEach((v, idx) => {
+                            if (v.state === 'frozen_lifting') {
+                                const spreadX = ufo.x + (idx - (batch.length - 1) / 2) * 26;
+                                v.x += (spreadX - v.x) * Math.min(1, dt * 5);
+                                v.y -= 92 * dt;
+                                v.rotation = 0.08;
+                            } else if (v.state === 'disco_lifting') {
+                                const spreadX = ufo.x + Math.sin(ufo.subTimer * 10 + idx) * 18;
+                                v.x += (spreadX - v.x) * Math.min(1, dt * 6);
+                                v.y -= 82 * dt;
+                                v.dir = Math.floor(ufo.subTimer * 6) % 2 === 0 ? 1 : -1;
+                                v.rotation = Math.sin(ufo.subTimer * 12) * 0.18;
+                            } else if (v.airGag === 'human_chain' && idx > 0) {
+                                const leader = batch[0];
+                                v.x += (leader.x + Math.sin(ufo.subTimer * 8 + idx) * 10 - v.x) * Math.min(1, dt * 8);
+                                v.y += (leader.y + idx * 36 - v.y) * Math.min(1, dt * 8);
+                                v.rotation = Math.sin(ufo.subTimer * 6 + idx) * 0.25;
+                            } else {
+                                const spreadX = ufo.x + (idx - (batch.length - 1) / 2) * 28;
+                                v.x += (spreadX - v.x) * Math.min(1, dt * 4);
+                                v.y -= 74 * dt;
+                                if (v.airGag === 'umbrella_flip' || v.airGag === 'selfie_flash' || v.airGag === 'air_swim') {
+                                    v.rotation = Math.sin(ufo.subTimer * 5 + idx) * 0.22;
+                                } else {
+                                    v.rotation += 2.2 * dt;
+                                }
+                            }
+                        });
+
+                        if (gameState.willDoFakeout && ufo.subTimer >= 1.5) {
+                            ufo.beamActive = false;
+                            playSound('drop_thud');
+                            ufo.speechText = gameState.fakeoutDecision === 'switch'
+                                ? "Ủa nhóm này nặng quá! Thả xuống kiếm đứa khác coi!!"
+                                : "Giả vờ mất điện thả rơi xem tụi nó có gáy sớm không!!";
+                            ufo.speechTimer = 2.8;
+
+                            batch.forEach((v) => {
+                                v.state = 'falling_free';
+                                v.vy = 20;
+                                v.rotation = 0;
+                                v.timesDropped = (v.timesDropped || 0) + 1;
+                                v.speechText = "Ủa tự nhiên tắt đèn thả rơi vậy á á á!!";
+                                v.speechTimer = 2.0;
+                            });
+
+                            ufo.huntSubState = 'fakeout_drop';
+                            ufo.subTimer = 0;
+                            updateHUD();
+                        } else if (!gameState.willDoFakeout && ufo.subTimer >= 1.15) {
+                            ufo.huntSubState = 'final_ascent';
+                            ufo.subTimer = 0;
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 5A: RƠI TỰ DO XUỐNG ĐẤT KHI UFO TẮT ĐÈN ---
+                    else if (ufo.huntSubState === 'fakeout_drop') {
+                        ufo.subTimer += dt;
+                        ufo.x += (ufo.x < W * 0.5 ? 95 : -95) * dt;
+                        ufo.tilt = ufo.x < W * 0.5 ? 0.14 : -0.14;
+
+                        let allLanded = true;
+                        batch.forEach((v) => {
+                            if (v.y < v.baseY) {
+                                v.vy += 460 * dt;
+                                v.y += v.vy * dt;
+                                if (v.y >= v.baseY) {
+                                    v.y = v.baseY;
+                                    v.vy = 0;
+                                    v.state = 'celebrating_escape';
+                                    v.speechText = FAKEOUT_CELEBRATE_QUOTES[Math.floor(Math.random() * FAKEOUT_CELEBRATE_QUOTES.length)];
+                                    v.speechTimer = 3.2;
+                                } else {
+                                    allLanded = false;
+                                }
+                            }
+                        });
+
+                        if (allLanded) {
+                            ufo.huntSubState = 'fakeout_celebrate';
+                            ufo.subTimer = 0;
+                            updateHUD();
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 5B: NẠN NHÂN ĂN MỪNG DƯỚI ĐẤT -> UFO NGẪU NHIÊN BỎ ĐI BẮT NGƯỜI KHÁC HOẶC QUAY LẠI! ---
+                    else if (ufo.huntSubState === 'fakeout_celebrate') {
+                        ufo.subTimer += dt;
+
+                        batch.forEach((v, idx) => {
+                            v.y = v.baseY - Math.abs(Math.sin(ufo.subTimer * 12 + idx)) * 12;
+                        });
+
+                        if (gameState.fakeoutDecision === 'switch') {
+                            ufo.x += (ufo.x < W * 0.5 ? 110 : -110) * dt;
+                            if (ufo.subTimer >= 1.9) {
+                                gameState.lastDroppedIds = batch.map(v => v.id);
+                                batch.forEach(v => {
+                                    v.state = 'panicking';
+                                    v.y = v.baseY;
+                                    v.rotation = 0;
+                                    v.speechText = SPARED_RELIEF_QUOTES[Math.floor(Math.random() * SPARED_RELIEF_QUOTES.length)];
+                                    v.speechTimer = 3.8;
+                                });
+                                selectNextBatchForUFO(true);
+                            }
+                        } else {
+                            if (ufo.subTimer < 1.3) {
+                                ufo.x += 35 * dt;
+                            } else {
+                                ufo.speechText = "Đùa tí thôi cưng! Quay xe lại hốt hết nè!!";
+                                ufo.speechTimer = 2.8;
+                                ufo.x += (anchorX - ufo.x) * Math.min(1, dt * 6);
+                            }
+
+                            if (ufo.subTimer >= 2.4) {
+                                playSound('ufo_arrive');
+                                ufo.beamActive = true;
+                                ufo.beamColorMode = 'super';
+                                batch.forEach((v, idx) => {
+                                    v.state = 'resnatched';
+                                    v.abductReason = "Bị UFO thả ra cho gáy sớm rồi bất ngờ quay xe bắt lại";
+                                    v.speechText = RESNATCH_SHOCK_QUOTES[(v.id + idx) % RESNATCH_SHOCK_QUOTES.length];
+                                    v.speechTimer = 3.5;
+                                });
+                                ufo.huntSubState = 're_snatch';
+                                ufo.subTimer = 0;
+                                updateHUD();
+                            }
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 5C: BỊ HÚT NGƯỢC LẠI LẦN 2 TRONG SỰ NGỠ NGÀNG (2.0 GIÂY) ---
+                    else if (ufo.huntSubState === 're_snatch') {
+                        ufo.subTimer += dt;
+                        batch.forEach((v, idx) => {
+                            const spreadX = ufo.x + (idx - (batch.length - 1) / 2) * 26;
+                            v.x += (spreadX - v.x) * Math.min(1, dt * 5);
+                            v.y -= 62 * dt;
+                            v.rotation = Math.sin(ufo.subTimer * 18 + idx) * 0.45;
+                        });
+
+                        if (ufo.subTimer >= 1.8) {
+                            ufo.huntSubState = 'final_ascent';
+                            ufo.subTimer = 0;
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 6: BAY TỌT VÀO TRONG BỤNG ĐĨA BAY ---
+                    else if (ufo.huntSubState === 'final_ascent') {
+                        let allInside = true;
+                        batch.forEach((v, idx) => {
+                            v.x += (ufo.x - v.x) * Math.min(1, dt * 6);
+                            v.y -= 115 * dt;
+                            v.rotation += 4.2 * dt;
+
+                            const distY = v.y - ufo.y;
+                            if (distY < 55) {
+                                v.scale = Math.max(0.05, distY / 55);
+                            }
+                            if (v.y > ufo.y + 12) {
+                                allInside = false;
+                            } else if (v.state !== 'abducted') {
+                                v.state = 'abducted';
+                                v.scale = 1;
+                                v.rotation = 0;
+                                gameState.abductedList.push(v);
+                                playSound('pop_abduct');
+                                renderLiveAbductedBadges();
+                                updateHUD();
+                            }
+                        });
+
+                        if (allInside) {
+                            ufo.beamActive = false;
+                            ufo.huntSubState = 'celebrating';
+                            ufo.subTimer = 0;
+                        }
+                    }
+
+                    // --- GIAI ĐOẠN 7: UFO LẮC LƯ ĂN MỪNG TRƯỚC KHI QUA LƯỢT TIẾP THEO ---
+                    else if (ufo.huntSubState === 'celebrating') {
+                        ufo.subTimer += dt;
+                        gameState.timeFrozen = false;
+                        ufo.tilt = Math.sin(ufo.subTimer * 22) * 0.14;
+                        if (ufo.subTimer >= 0.85) {
+                            ufo.tilt = 0;
+                            selectNextBatchForUFO(false);
+                        }
+                    }
+                } else if (gameState.phase === 'ufo_leaving') {
+                    ufo.x += (ufo.targetX - ufo.x) * Math.min(1, dt * 2.5);
+                    ufo.y += (ufo.targetY - ufo.y) * Math.min(1, dt * 2.5);
+                    ufo.tilt = 0.22;
+                }
+            }
+
+            // 6. Trả dần độ cong của cây/cột điện về 0
+            streetProps.forEach(p => {
+                const isTargeted = gameState.currentBatch.some(v => v.targetProp === p && (v.state === 'clinging_low' || v.state === 'clinging_high'));
+                if (!isTargeted) {
+                    p.bendAngle *= Math.pow(0.05, dt);
+                }
+            });
+
+            // 7. Cập nhật chuyển động của những người dân còn lại trên phố
+            citizens.forEach(c => {
+                if (c.state === 'abducted') return;
+
+                if (c.speechTimer > 0) {
+                    c.speechTimer -= dt;
+                    if (c.speechTimer <= 0) {
+                        c.speechText = null;
+                    }
+                } else if (gameState.phase === 'ufo_hunting' && c.state === 'panicking' && !gameState.timeFrozen && Math.random() < 0.35 * dt) {
+                    c.speechText = PANIC_SCREAMS[Math.floor(Math.random() * PANIC_SCREAMS.length)];
+                    c.speechTimer = 2.6;
+                }
+
+                // Xử lý người bị UFO chê và ném trả lại từ đĩa bay xuống phố
+                if (c.state === 'ejected_falling') {
+                    c.vy += 180 * dt;
+                    c.y += c.vy * dt;
+                    c.x += Math.sin(performance.now() * 0.008 + c.id) * 35 * dt;
+                    if (c.y >= c.baseY) {
+                        c.y = c.baseY;
+                        c.vy = 0;
+                        c.state = 'panicking';
+                        playSound('drop_thud');
+                    }
+                    return;
+                }
+
+                // Nếu thời gian đang bị đóng băng, những người không bị hút sẽ đứng bất động!
+                if (gameState.timeFrozen && !gameState.currentBatch.includes(c)) {
+                    return;
+                }
+
+                if (c.state === 'strolling') {
+                    c.x += c.vx * dt;
+                    c.walkCycle += 6.5 * dt;
+                    c.dir = c.vx >= 0 ? 1 : -1;
+                    if (c.x < 45) { c.x = 45; c.vx = Math.abs(c.vx); }
+                    if (c.x > W - 45) { c.x = W - 45; c.vx = -Math.abs(c.vx); }
+                } else if (c.state === 'panicking') {
+                    c.walkCycle += 15 * dt;
+                    if (gameState.currentBatch.includes(c) && c.targetProp && gameState.specialMode === 'none') {
+                        const dx = c.targetProp.x - c.x;
+                        c.dir = dx >= 0 ? 1 : -1;
+                        c.x += Math.sign(dx) * Math.min(Math.abs(dx), 145 * dt);
+                    } else {
+                        c.x += c.vx * 2.1 * dt;
+                        c.dir = c.vx >= 0 ? 1 : -1;
+                        if (Math.random() < 1.2 * dt) c.vx = -c.vx;
+                        if (c.x < 35) { c.x = 35; c.vx = Math.abs(c.vx); }
+                        if (c.x > W - 35) { c.x = W - 35; c.vx = -Math.abs(c.vx); }
+                    }
+                } else if (c.state !== 'frozen_lifting') {
+                    c.walkCycle += 22 * dt;
+                }
+            });
+
+            // 8. Cập nhật các đồ vật rơi (giày dép, xe máy) và lá cây rụng
+            for (let i = droppedItems.length - 1; i >= 0; i--) {
+                const item = droppedItems[i];
+                if (item.sucked && ufo.visible && ufo.beamActive) {
+                    item.x += (ufo.x - item.x) * Math.min(1, dt * 4);
+                    item.y -= 120 * dt;
+                    item.rot += 4 * dt;
+                    if (item.y <= ufo.y + 15) {
+                        droppedItems.splice(i, 1);
+                        continue;
+                    }
+                } else if (item.y < layout.sidewalkY + 18) {
+                    item.vy += 320 * dt;
+                    item.y += item.vy * dt;
+                    item.rot += 3 * dt;
+                }
+            }
+
+            for (let i = floatingLeaves.length - 1; i >= 0; i--) {
+                const lf = floatingLeaves[i];
+                lf.x += lf.vx * dt;
+                lf.y += lf.vy * dt;
+                lf.vy += 90 * dt;
+                lf.rot += 4 * dt;
+                lf.life -= dt;
+                if (lf.life <= 0) floatingLeaves.splice(i, 1);
+            }
+        }
+
+        /********************************************************************
+         * 7. HỆ THỐNG RENDER 2D CHI TIẾT (GÓC CAMERA CỐ ĐỊNH TOÀN CẢNH)
+         ********************************************************************/
+        function drawScene() {
+            // 1. BẦU TRỜI BUỔI SÁNG (Đổi màu nhẹ khi UFO xuất hiện)
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, layout.skyBottom);
+            if (gameState.phase === 'ufo_hunting') {
+                skyGrad.addColorStop(0, '#0f172a');
+                skyGrad.addColorStop(0.55, '#1e3a8a');
+                skyGrad.addColorStop(1, '#38bdf8');
+            } else {
+                skyGrad.addColorStop(0, '#0284c7');
+                skyGrad.addColorStop(0.55, '#38bdf8');
+                skyGrad.addColorStop(1, '#bae6fd');
+            }
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, W, layout.skyBottom);
+
+            // Ông mặt trời buổi sáng ấm áp
+            const sunX = W * 0.86;
+            const sunY = H * 0.13;
+            const sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 85);
+            sunGlow.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
+            sunGlow.addColorStop(0.5, 'rgba(253, 224, 71, 0.35)');
+            sunGlow.addColorStop(1, 'rgba(253, 224, 71, 0)');
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 85, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 32, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mây trắng & Đàn chim
+            clouds.forEach(c => drawCloud(c.x, c.y, c.scale));
+            birds.forEach(b => drawBird(b.x, b.y, b.wingPhase));
+
+            // 2. DÃY NHÀ CAO TẦNG ĐÔ THỊ PHÍA SAU (Đa dạng kiến trúc & chiều cao ngẫu nhiên!)
+            buildings.forEach(b => {
+                ctx.save();
+
+                if (b.arch === 'stepped_empire') {
+                    const h1 = b.h * 0.65;
+                    const h2 = b.h * 0.22;
+                    const h3 = b.h * 0.13;
+                    ctx.fillStyle = b.palette.body;
+                    ctx.fillRect(b.x, b.y + b.h - h1, b.w, h1);
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w - 9, b.y + b.h - h1, 9, h1);
+                    ctx.fillStyle = b.palette.body;
+                    ctx.fillRect(b.x + b.w * 0.12, b.y + h3, b.w * 0.76, h2);
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w * 0.26, b.y, b.w * 0.48, h3);
+                    ctx.strokeStyle = b.palette.roof;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + b.w * 0.5, b.y);
+                    ctx.lineTo(b.x + b.w * 0.5, b.y - 26);
+                    ctx.stroke();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(b.x + b.w * 0.5, b.y - 26, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (b.arch === 'slanted_modern') {
+                    ctx.fillStyle = b.palette.body;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y + 24);
+                    ctx.lineTo(b.x + b.w, b.y);
+                    ctx.lineTo(b.x + b.w, b.y + b.h);
+                    ctx.lineTo(b.x, b.y + b.h);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w - 10, b.y, 10, b.h);
+                } else if (b.arch === 'dome_luxury') {
+                    ctx.fillStyle = b.palette.body;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w - 9, b.y, 9, b.h);
+                    ctx.fillStyle = b.palette.roof;
+                    ctx.beginPath();
+                    ctx.arc(b.x + b.w / 2, b.y, b.w * 0.36, Math.PI, 0);
+                    ctx.fill();
+                } else if (b.arch === 'vn_tube_house') {
+                    ctx.fillStyle = b.palette.body;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w - 7, b.y, 7, b.h);
+                    ctx.fillStyle = '#dc2626';
+                    ctx.beginPath();
+                    ctx.moveTo(b.x - 3, b.y);
+                    ctx.lineTo(b.x + b.w / 2, b.y - 14);
+                    ctx.lineTo(b.x + b.w + 3, b.y);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = b.palette.body;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                    ctx.fillStyle = b.palette.side;
+                    ctx.fillRect(b.x + b.w - 10, b.y, 10, b.h);
+                }
+
+                if (b.hasWaterTank && b.arch !== 'dome_luxury' && b.arch !== 'stepped_empire') {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.beginPath();
+                    ctx.roundRect(b.x + 10, b.y - 11, 20, 9, 4);
+                    ctx.fill();
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + 13, b.y - 2);
+                    ctx.lineTo(b.x + 13, b.y);
+                    ctx.moveTo(b.x + 27, b.y - 2);
+                    ctx.lineTo(b.x + 27, b.y);
+                    ctx.stroke();
+                }
+
+                if (b.hasRoofGarden && b.arch !== 'vn_tube_house' && b.arch !== 'dome_luxury') {
+                    ctx.fillStyle = '#16a34a';
+                    ctx.beginPath();
+                    ctx.arc(b.x + b.w - 20, b.y - 4, 7, 0, Math.PI * 2);
+                    ctx.arc(b.x + b.w - 28, b.y - 3, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (b.billboard && b.arch !== 'vn_tube_house') {
+                    ctx.fillStyle = b.palette.accent;
+                    ctx.fillRect(b.x + 6, b.y - 22, b.w - 16, 16);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(b.x + 6, b.y - 22, b.w - 16, 16);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 8px "Be Vietnam Pro", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(b.billboard, b.x + (b.w - 4) / 2, b.y - 11);
+                }
+
+                const startWinY = b.y + (b.arch === 'stepped_empire' ? b.h * 0.36 : 22);
+                const endWinY = b.y + b.h - 42;
+
+                if (b.winStyle === 'horizontal_band') {
+                    for (let wy = startWinY; wy < endWinY; wy += 18) {
+                        ctx.fillStyle = b.palette.win;
+                        ctx.fillRect(b.x + 7, wy, b.w - 20, 10);
+                        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+                        ctx.fillRect(b.x + 7, wy, (b.w - 20) * 0.4, 10);
+                    }
+                } else if (b.winStyle === 'balcony' || b.arch === 'vintage_apt' || b.arch === 'vn_tube_house') {
+                    for (let wy = startWinY; wy < endWinY; wy += 24) {
+                        ctx.fillStyle = b.palette.win;
+                        ctx.fillRect(b.x + 10, wy, b.w - 26, 14);
+                        ctx.fillStyle = '#475569';
+                        ctx.fillRect(b.x + 8, wy + 11, b.w - 22, 4);
+                        ctx.fillStyle = '#22c55e';
+                        ctx.beginPath();
+                        ctx.arc(b.x + 14, wy + 10, 3.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else {
+                    const cols = b.w > 85 ? 4 : 3;
+                    const winW = (b.w - 24 - (cols - 1) * 4) / cols;
+                    const winH = 12;
+                    for (let wy = startWinY; wy < endWinY; wy += 20) {
+                        for (let c = 0; c < cols; c++) {
+                            const wx = b.x + 8 + c * (winW + 4);
+                            ctx.fillStyle = b.palette.win;
+                            if (b.winStyle === 'arched') {
+                                ctx.beginPath();
+                                ctx.roundRect(wx, wy, winW, winH, [6, 6, 0, 0]);
+                                ctx.fill();
+                            } else {
+                                ctx.fillRect(wx, wy, winW, winH);
+                            }
+                        }
+                    }
+                }
+
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(b.x + 4, b.y + b.h - 32, b.w - 14, 32);
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(b.x + 9, b.y + b.h - 22, b.w - 24, 22);
+                ctx.fillStyle = b.shopColor;
+                ctx.beginPath();
+                ctx.roundRect(b.x + 2, b.y + b.h - 36, b.w - 10, 9, 3);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '800 7px "Be Vietnam Pro", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(b.shopName, b.x + (b.w - 6) / 2, b.y + b.h - 29);
+
+                ctx.restore();
+            });
+
+            // 3. MẶT ĐƯỜNG & VỈA HÈ ĐÔ THỊ
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(0, layout.skyBottom, W, layout.roadTop - layout.skyBottom);
+
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1;
+            for (let sx = 0; sx < W; sx += 36) {
+                ctx.beginPath();
+                ctx.moveTo(sx, layout.skyBottom);
+                ctx.lineTo(sx - 18, layout.roadTop);
+                ctx.stroke();
+            }
+
+            for (let cx = 0; cx < W; cx += 40) {
+                ctx.fillStyle = (cx / 40) % 2 === 0 ? '#ef4444' : '#f8fafc';
+                ctx.fillRect(cx, layout.roadTop - 6, 40, 6);
+            }
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, layout.roadTop, W, H - layout.roadTop);
+
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([28, 22]);
+            ctx.beginPath();
+            ctx.moveTo(0, layout.roadTop + (H - layout.roadTop) * 0.48);
+            ctx.lineTo(W, layout.roadTop + (H - layout.roadTop) * 0.48);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. ĐƯỜNG DÂY ĐIỆN & CÂY XANH / CỘT ĐIỆN LOA PHƯỜNG
+            drawUtilityWires();
+            streetProps.forEach(p => {
+                if (p.type === 'tree') drawStreetTree(p);
+                else drawUtilityPole(p);
+            });
+
+            // 5. LUỒNG ÁNH SÁNG HÚT CỦA UFO (Vẽ lớp nền phía sau nhân vật)
+            if (ufo.visible && ufo.beamActive) {
+                drawUFOBeam();
+            }
+
+            // 6. XE CỘ TRÊN ĐƯỜNG (Hoặc đang bay lơ lửng vào UFO)
+            bgVehicles.forEach(v => drawStreetVehicle(v));
+
+            // 7. ĐỒ VẬT RƠI LẠI TRÊN ĐƯỜNG & ĐÀN CHÓ GIẢI CỨU
+            droppedItems.forEach(item => drawDroppedItem(item));
+            chasingDogs.forEach(dog => drawChasingDog(dog));
+
+            // 8. NGƯỜI DÂN TRÊN PHỐ (Sắp xếp theo trục Y để có chiều sâu)
+            const activeCitizens = citizens.filter(c => c.state !== 'abducted').sort((a, b) => a.y - b.y);
+            activeCitizens.forEach(c => drawCitizenCharacter(c));
+
+            // 9. LÁ CÂY RỤNG & TIA LỬA ĐIỆN KHI GIẰNG CO
+            floatingLeaves.forEach(lf => {
+                ctx.save();
+                ctx.translate(lf.x, lf.y);
+                ctx.rotate(lf.rot);
+                if (lf.type === 'leaf') {
+                    ctx.fillStyle = '#22c55e';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 5, 2.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#fde047';
+                    ctx.fillRect(-3, -1.5, 6, 3);
+                }
+                ctx.restore();
+            });
+
+            // Hiệu ứng màng lọc không gian khi UFO bật ĐÓNG BĂNG THỜI GIAN
+            if (gameState.timeFrozen) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(14, 165, 233, 0.16)';
+                ctx.fillRect(0, 0, W, H);
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(3, 3, W - 6, H - 6);
+                ctx.restore();
+            }
+
+            // 10. VẼ ĐĨA BAY UFO TRÊN BẦU TRỜI
+            if (ufo.visible) {
+                drawUFOSpaceship();
+            }
+        }
+
+        function drawCloud(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.arc(20, -6, 26, 0, Math.PI * 2);
+            ctx.arc(44, 0, 20, 0, Math.PI * 2);
+            ctx.arc(22, 10, 22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawBird(x, y, phase) {
+            const wingY = Math.sin(phase) * 5;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - 7, y + wingY);
+            ctx.quadraticCurveTo(x - 3, y - 4, x, y);
+            ctx.quadraticCurveTo(x + 3, y - 4, x + 7, y + wingY);
+            ctx.stroke();
+        }
+
+        function drawUtilityWires() {
+            const poles = streetProps.filter(p => p.type === 'pole');
+            if (poles.length < 2) return;
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.65)';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < poles.length - 1; i++) {
+                const p1 = poles[i];
+                const p2 = poles[i + 1];
+                const x1 = p1.x + Math.sin(p1.bendAngle) * 85;
+                const y1 = p1.y - 88;
+                const x2 = p2.x + Math.sin(p2.bendAngle) * 85;
+                const y2 = p2.y - 88;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.quadraticCurveTo((x1 + x2) / 2, Math.max(y1, y2) + 18, x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        function drawStreetTree(p) {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.bendAngle);
+
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(-14, -4, 28, 7);
+
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.moveTo(-7, 0);
+            ctx.lineTo(-4, -75);
+            ctx.lineTo(4, -75);
+            ctx.lineTo(7, 0);
+            ctx.fill();
+
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(0, -58);
+            ctx.lineTo(-18, -76);
+            ctx.moveTo(0, -64);
+            ctx.lineTo(18, -80);
+            ctx.stroke();
+
+            ctx.fillStyle = '#15803d';
+            ctx.beginPath();
+            ctx.arc(0, -92, 28, 0, Math.PI * 2);
+            ctx.arc(-20, -80, 22, 0, Math.PI * 2);
+            ctx.arc(20, -80, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.arc(-5, -96, 22, 0, Math.PI * 2);
+            ctx.arc(14, -84, 17, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawUtilityPole(p) {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.bendAngle);
+
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(-5, -102, 10, 102);
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-20, -90, 40, 5);
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.moveTo(4, -82);
+            ctx.lineTo(18, -90);
+            ctx.lineTo(18, -74);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawStreetVehicle(v) {
+            ctx.save();
+            ctx.translate(v.x, v.y);
+            ctx.rotate(v.rotation);
+            ctx.scale(v.dir * v.scale, v.scale);
+
+            if (v.type === 'bus') {
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.roundRect(-55, -36, 110, 32, 6);
+                ctx.fill();
+                ctx.fillStyle = '#e0f2fe';
+                for (let wx = -45; wx <= 25; wx += 18) {
+                    ctx.fillRect(wx, -30, 13, 12);
+                }
+                drawWheel(-34, -4, 7);
+                drawWheel(34, -4, 7);
+            } else if (v.type === 'sedan' || v.type === 'taxi') {
+                ctx.fillStyle = v.type === 'taxi' ? '#facc15' : v.color;
+                ctx.beginPath();
+                ctx.roundRect(-34, -18, 68, 15, 5);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-20, -18);
+                ctx.lineTo(-10, -30);
+                ctx.lineTo(14, -30);
+                ctx.lineTo(24, -18);
+                ctx.fill();
+                ctx.fillStyle = '#bae6fd';
+                ctx.fillRect(-9, -27, 10, 8);
+                ctx.fillRect(4, -27, 10, 8);
+                if (v.type === 'taxi') {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(-6, -34, 12, 4);
+                }
+                drawWheel(-20, -3, 6);
+                drawWheel(20, -3, 6);
+            } else if (v.type === 'boba_cart' || v.type === 'banhmi_cart') {
+                ctx.fillStyle = v.type === 'boba_cart' ? '#ec4899' : '#ea580c';
+                ctx.fillRect(-22, -26, 44, 20);
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(-20, -44, 40, 18);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 7px "Be Vietnam Pro", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(v.label, 0, -13);
+                drawWheel(-12, -4, 6);
+                drawWheel(12, -4, 6);
+            } else if (v.type === 'cow') {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.roundRect(-18, -22, 34, 16, 5);
+                ctx.fill();
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.arc(-6, -15, 5, 0, Math.PI * 2);
+                ctx.arc(7, -12, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.arc(18, -20, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fda4af';
+                ctx.fillRect(19, -18, 6, 5);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-14, -6, 3, 6);
+                ctx.fillRect(-6, -6, 3, 6);
+                ctx.fillRect(6, -6, 3, 6);
+                ctx.fillRect(12, -6, 3, 6);
+            } else if (v.type === 'trash_bin') {
+                ctx.fillStyle = '#16a34a';
+                ctx.fillRect(-10, -24, 20, 24);
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(-12, -27, 24, 4);
+            } else {
+                drawScooterShape(0, 0, v.color);
+            }
+
+            ctx.restore();
+        }
+
+        function drawWheel(x, y, r) {
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#cbd5e1';
+            ctx.beginPath();
+            ctx.arc(x, y, r * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawScooterShape(x, y, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(-18, -6);
+            ctx.lineTo(10, -6);
+            ctx.lineTo(15, -22);
+            ctx.lineTo(10, -22);
+            ctx.lineTo(5, -10);
+            ctx.lineTo(-16, -14);
+            ctx.closePath();
+            ctx.fill();
+            drawWheel(-12, -4, 5);
+            drawWheel(12, -4, 5);
+            ctx.restore();
+        }
+
+        function drawDroppedItem(item) {
+            ctx.save();
+            ctx.translate(item.x, item.y);
+            ctx.rotate(item.rot);
+            if (item.type === 'scooter') {
+                drawScooterShape(0, 0, item.color);
+            } else if (item.type === 'shoe') {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-5, -3, 10, 5);
+            } else {
+                ctx.fillStyle = '#92400e';
+                ctx.fillRect(-6, -5, 12, 9);
+            }
+            ctx.restore();
+        }
+
+        function drawChasingDog(dog) {
+            ctx.save();
+            ctx.translate(dog.x, dog.y);
+            const bounce = Math.abs(Math.sin(dog.barkTimer * 18)) * 4;
+            ctx.translate(0, -bounce);
+
+            ctx.save();
+            ctx.scale(dog.dir || 1, 1);
+            ctx.fillStyle = dog.color || '#d97706';
+            ctx.beginPath();
+            ctx.roundRect(-14, -14, 24, 11, 4);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(12, -16, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(6, -22, 4, 6);
+            ctx.fillRect(-12, -3, 3, 5);
+            ctx.fillRect(6, -3, 3, 5);
+            ctx.restore();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 10px "Be Vietnam Pro", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(dog.label || 'Gâu gâu!!', 0, -26);
+            ctx.restore();
+        }
+
+        function drawCitizenCharacter(c) {
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.scale(c.scale, c.scale);
+            ctx.rotate(c.rotation);
+
+            if (c.state === 'strolling' || c.state === 'panicking') {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.32)';
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 13, 4, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Nếu vừa bị UFO chê và ném trả xuống đất, vẽ chiếc dù cứu sinh màu cam trên lưng!
+            if (c.state === 'ejected_falling') {
+                ctx.save();
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-6, -30);
+                ctx.lineTo(-18, -62);
+                ctx.moveTo(6, -30);
+                ctx.lineTo(18, -62);
+                ctx.stroke();
+
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.arc(0, -60, 22, Math.PI, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.save();
+            ctx.scale(c.dir, 1);
+
+            if (c.hasBikeNow) {
+                drawScooterShape(0, 2, c.bikeColor);
+            }
+
+            const isClinging = (c.state === 'clinging_low' || c.state === 'clinging_high');
+            const isAirborne = (c.state === 'lifting' || c.state === 'resnatched' || c.state === 'falling_free' || c.state === 'frozen_lifting' || c.state === 'disco_lifting' || c.state === 'ejected_falling');
+            const legSwing = Math.sin(c.walkCycle) * (isClinging || isAirborne ? 11 : 6);
+
+            // Đôi chân
+            ctx.strokeStyle = c.outfit.bottom;
+            ctx.lineWidth = 4.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            if (isClinging) {
+                ctx.moveTo(-3, -15);
+                ctx.lineTo(12, -10 + legSwing * 0.6);
+                ctx.moveTo(3, -15);
+                ctx.lineTo(14, -4 - legSwing * 0.6);
+            } else {
+                ctx.moveTo(-3, -15);
+                ctx.lineTo(-3 + legSwing, 0);
+                ctx.moveTo(3, -15);
+                ctx.lineTo(3 - legSwing, 0);
+            }
+            ctx.stroke();
+
+            // Thân áo
+            ctx.fillStyle = c.outfit.top;
+            ctx.beginPath();
+            ctx.roundRect(-8, -32, 16, 18, 4);
+            ctx.fill();
+
+            if (c.outfit.style === 'suit' || c.outfit.style === 'office' || c.outfit.style === 'vest') {
+                ctx.fillStyle = c.outfit.shirt;
+                ctx.beginPath();
+                ctx.moveTo(-4, -32);
+                ctx.lineTo(4, -32);
+                ctx.lineTo(0, -23);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = c.outfit.tie;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -30);
+                ctx.lineTo(isClinging || isAirborne ? -6 : 0, isClinging || isAirborne ? -37 : -20);
+                ctx.stroke();
+            } else if (c.outfit.style === 'aodai') {
+                ctx.fillStyle = c.outfit.top;
+                ctx.fillRect(-7, -17, 6, 11);
+                ctx.fillRect(1, -17, 6, 11);
+            }
+
+            // Đôi tay + Các Animation Hài Hước Sáng Tạo Khi Bị Hút
+            ctx.strokeStyle = c.outfit.top;
+            ctx.lineWidth = 3.8;
+            ctx.beginPath();
+            if (isClinging) {
+                ctx.moveTo(0, -28);
+                ctx.lineTo(-18, -31);
+                ctx.moveTo(0, -23);
+                ctx.lineTo(-18, -25);
+                ctx.stroke();
+            } else if (c.state === 'celebrating_escape') {
+                ctx.moveTo(-5, -28);
+                ctx.lineTo(-13, -42);
+                ctx.moveTo(5, -28);
+                ctx.lineTo(13, -42);
+                ctx.stroke();
+            } else if (isAirborne && c.airGag === 'umbrella_flip') {
+                ctx.moveTo(-4, -28);
+                ctx.lineTo(0, -45);
+                ctx.moveTo(4, -28);
+                ctx.lineTo(0, -45);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -42);
+                ctx.lineTo(0, -64);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ec4899';
+                ctx.beginPath();
+                ctx.moveTo(0, -55);
+                ctx.quadraticCurveTo(-14, -60, -18, -72);
+                ctx.lineTo(0, -62);
+                ctx.lineTo(18, -72);
+                ctx.quadraticCurveTo(14, -60, 0, -55);
+                ctx.fill();
+            } else if (isAirborne && c.airGag === 'selfie_flash') {
+                ctx.moveTo(-5, -28);
+                ctx.lineTo(-12, -38);
+                ctx.moveTo(5, -28);
+                ctx.lineTo(16, -42);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.moveTo(16, -42);
+                ctx.lineTo(26, -52);
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(24, -57, 6, 10);
+
+                if (Math.floor(performance.now() / 120) % 2 === 0) {
+                    ctx.fillStyle = 'rgba(254, 240, 138, 0.95)';
+                    ctx.beginPath();
+                    ctx.arc(27, -54, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (isAirborne && c.airGag === 'air_swim') {
+                const swim = Math.sin(performance.now() * 0.025 + c.id) * 12;
+                ctx.moveTo(-5, -28);
+                ctx.lineTo(-16, -28 + swim);
+                ctx.moveTo(5, -28);
+                ctx.lineTo(16, -28 + swim);
+                ctx.stroke();
+            } else if (isAirborne && c.airGag === 'human_chain') {
+                ctx.moveTo(-4, -29);
+                ctx.lineTo(-5, -48);
+                ctx.moveTo(4, -29);
+                ctx.lineTo(5, -48);
+                ctx.stroke();
+            } else if (c.state === 'panicking' || isAirborne) {
+                const wave = Math.sin(performance.now() * 0.03 + c.id) * 6;
+                ctx.moveTo(-5, -28);
+                ctx.lineTo(-12, -39 + wave);
+                ctx.moveTo(5, -28);
+                ctx.lineTo(12, -39 - wave);
+                ctx.stroke();
+            } else if (c.hasBikeNow) {
+                ctx.moveTo(2, -27);
+                ctx.lineTo(13, -24);
+                ctx.stroke();
+            } else {
+                ctx.moveTo(0, -27);
+                ctx.lineTo(legSwing * 0.8, -17);
+                ctx.stroke();
+            }
+
+            if (c.state === 'strolling' && !c.hasBikeNow) {
+                if (c.accessory === 'briefcase') {
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(legSwing * 0.8 - 5, -17, 10, 8);
+                } else if (c.accessory === 'coffee' || c.accessory === 'boba') {
+                    ctx.fillStyle = '#fef3c7';
+                    ctx.fillRect(4, -24, 5, 7);
+                }
+            }
+
+            // Đầu & Biểu cảm khuôn mặt hài hước
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -40, 8.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1e293b';
+            if (isClinging || isAirborne) {
+                ctx.beginPath();
+                ctx.moveTo(-8, -44);
+                ctx.lineTo(-4, -55);
+                ctx.lineTo(0, -46);
+                ctx.lineTo(4, -56);
+                ctx.lineTo(8, -44);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, -43, 8.5, Math.PI, 0);
+                ctx.fill();
+            }
+
+            if (c.state === 'strolling') {
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(3, -41, 1.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(3, -38, 2.5, 0.1, Math.PI * 0.8);
+                ctx.stroke();
+            } else if (c.state === 'celebrating_escape') {
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(-2, -41, 2, Math.PI, 0);
+                ctx.arc(4, -41, 2, Math.PI, 0);
+                ctx.stroke();
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(1, -36, 3.5, 0, Math.PI);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-2, -41, 2.6, 0, Math.PI * 2);
+                ctx.arc(4, -41, 2.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(-2, -41, 1.1, 0, Math.PI * 2);
+                ctx.arc(4, -41, 1.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#7f1d1d';
+                ctx.beginPath();
+                ctx.ellipse(1, -35.5, 3.2, 4.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(-9, -43, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore(); // Kết thúc lật trái/phải để vẽ Tên & Thoại luôn xuôi chiều đọc
+
+            const isTargeted = gameState.currentBatch.includes(c);
+            ctx.font = '800 11px "Be Vietnam Pro", sans-serif';
+            const nameWidth = ctx.measureText(c.name).width + 14;
+            const labelY = -62;
+
+            ctx.fillStyle = isTargeted ? 'rgba(225, 29, 72, 0.95)' : 'rgba(15, 23, 42, 0.88)';
+            ctx.strokeStyle = isTargeted ? '#fde047' : 'rgba(56, 189, 248, 0.7)';
+            ctx.lineWidth = isTargeted ? 2 : 1.2;
+            ctx.beginPath();
+            ctx.roundRect(-nameWidth / 2, labelY - 16, nameWidth, 18, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(c.name, 0, labelY - 3);
+
+            if (c.speechText) {
+                drawSpeechBubble(0, labelY - 22, c.speechText, isTargeted);
+            }
+
+            ctx.restore();
+        }
+
+        function drawSpeechBubble(x, y, text, isHighlighted) {
+            ctx.save();
+            ctx.font = '700 11px "Be Vietnam Pro", sans-serif';
+            const padX = 10;
+            const textW = ctx.measureText(text).width;
+            const boxW = textW + padX * 2;
+            const boxH = 22;
+
+            ctx.fillStyle = isHighlighted ? '#fef08a' : '#ffffff';
+            ctx.strokeStyle = isHighlighted ? '#dc2626' : '#0f172a';
+            ctx.lineWidth = 1.8;
+
+            ctx.beginPath();
+            ctx.roundRect(x - boxW / 2, y - boxH, boxW, boxH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x - 4, y);
+            ctx.lineTo(x + 4, y);
+            ctx.lineTo(x, y + 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, y - 7);
+            ctx.restore();
+        }
+
+        function drawUFOBeam() {
+            ctx.save();
+            const topW = 28;
+            const bottomW = ufo.beamRadius * 2.1;
+            const groundY = layout.sidewalkY + 32;
+
+            const grad = ctx.createLinearGradient(ufo.x, ufo.y + 10, ufo.x, groundY);
+            if (ufo.beamColorMode === 'super') {
+                grad.addColorStop(0, 'rgba(236, 72, 153, 0.72)');
+                grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.42)');
+                grad.addColorStop(1, 'rgba(236, 72, 153, 0.08)');
+            } else if (ufo.beamColorMode === 'freeze') {
+                grad.addColorStop(0, 'rgba(56, 189, 248, 0.80)');
+                grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.45)');
+                grad.addColorStop(1, 'rgba(14, 165, 233, 0.12)');
+            } else if (ufo.beamColorMode === 'disco') {
+                grad.addColorStop(0, 'rgba(250, 204, 21, 0.75)');
+                grad.addColorStop(0.5, 'rgba(236, 72, 153, 0.48)');
+                grad.addColorStop(1, 'rgba(168, 85, 247, 0.12)');
+            } else {
+                grad.addColorStop(0, 'rgba(52, 211, 153, 0.68)');
+                grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.36)');
+                grad.addColorStop(1, 'rgba(52, 211, 153, 0.08)');
+            }
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(ufo.x - topW, ufo.y + 12);
+            ctx.lineTo(ufo.x + topW, ufo.y + 12);
+            ctx.lineTo(ufo.x + bottomW, groundY);
+            ctx.lineTo(ufo.x - bottomW, groundY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = ufo.beamColorMode === 'super'
+                ? 'rgba(244, 114, 182, 0.75)'
+                : (ufo.beamColorMode === 'freeze'
+                    ? 'rgba(125, 211, 252, 0.85)'
+                    : (ufo.beamColorMode === 'disco' ? 'rgba(253, 224, 71, 0.85)' : 'rgba(110, 231, 183, 0.75)'));
+            ctx.lineWidth = 2.5;
+            for (let i = 0; i < 4; i++) {
+                const progress = ((ufo.lightPhase * 0.28 + i * 0.25) % 1);
+                const ringY = groundY - progress * (groundY - ufo.y - 20);
+                const ringW = topW + (1 - progress) * (bottomW - topW);
+                ctx.beginPath();
+                ctx.ellipse(ufo.x, ringY, ringW * 0.85, 9, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function drawUFOSpaceship() {
+            ctx.save();
+            ctx.translate(ufo.x, ufo.y);
+            ctx.rotate(ufo.tilt);
+
+            ctx.fillStyle = 'rgba(125, 211, 252, 0.68)';
+            ctx.beginPath();
+            ctx.arc(0, -8, 34, Math.PI, 0);
+            ctx.fill();
+            ctx.strokeStyle = '#e0f2fe';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Người ngoài hành tinh nhỏ màu xanh bên trong buồng lái
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(0, -18, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.ellipse(-3.5, -19, 2.5, 3.5, -0.2, 0, Math.PI * 2);
+            ctx.ellipse(3.5, -19, 2.5, 3.5, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            const saucerGrad = ctx.createLinearGradient(-68, 0, 68, 0);
+            saucerGrad.addColorStop(0, '#475569');
+            saucerGrad.addColorStop(0.5, '#cbd5e1');
+            saucerGrad.addColorStop(1, '#334155');
+            ctx.fillStyle = saucerGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 68, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            const ledColors = ['#ef4444', '#fde047', '#22c55e', '#38bdf8', '#ec4899'];
+            for (let i = -3; i <= 3; i++) {
+                const lx = i * 17;
+                const ly = Math.cos(i * 0.4) * 5;
+                const colorIdx = Math.abs(Math.floor(ufo.lightPhase) + i) % ledColors.length;
+                ctx.fillStyle = ledColors[colorIdx];
+                ctx.beginPath();
+                ctx.arc(lx, ly, 4.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Đảm bảo hộp thoại của UFO luôn nằm dưới thanh HUD phía trên và không bị tràn mép màn hình
+            if (ufo.speechText) {
+                const safeBubbleX = Math.max(180, Math.min(W - 180, ufo.x));
+                const safeBubbleY = Math.max(92, ufo.y - 46);
+                drawSpeechBubble(safeBubbleX, safeBubbleY, `👽 ${ufo.speechText}`, true);
+            }
+        }
+
+        /********************************************************************
+         * 8. KHỞI CHẠY TRÒ CHƠI KHI TẢI TRANG
+         ********************************************************************/
+        let lastFrameTime = performance.now();
+
+        function mainAnimationLoop(now) {
+            const rawDt = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+
+            updateSimulation(rawDt);
+            drawScene();
+
+            requestAnimationFrame(mainAnimationLoop);
+        }
+
+        window.addEventListener('resize', () => {
+            initEnvironmentScene();
+            syncCitizensWithInputNames();
+        });
+
+        window.onload = function () {
+            document.getElementById('namesInput').value = DEFAULT_FUNNY_NAMES.join('\n');
+            initEnvironmentScene();
+            handleNamesInputChange();
+            syncCitizensWithInputNames();
+            requestAnimationFrame(mainAnimationLoop);
+        };
+    </script>
+</body>
+</html>
